@@ -16,7 +16,7 @@ return new class extends Migration
     {
         Schema::create('movies', function (Blueprint $table) {
             // Khóa chính
-            $table->id('movie_id'); 
+            $table->integer('movie_id')->primary(); 
 
             // Cột dữ liệu
             $table->string('original_language', 10)->nullable();

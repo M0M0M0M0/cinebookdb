@@ -26,7 +26,7 @@ return new class extends Migration
             $table->foreign('showtime_id')
                 ->references('showtime_id')
                 ->on('showtimes')
-                ->onDelete('cascade');
+                ->onDelete('restrict');
 
             $table->foreign('seat_type_id')
                 ->references('seat_type_id')

@@ -17,7 +17,7 @@ return new class extends Migration
             $table->id('room_id');
             $table->string('room_name', 100)->check('LENGTH(room_name) >= 1');
             $table->string('room_type', 30)->check('LENGTH(room_type) >= 1');
-            $table->integer('theater_id');
+            $table->unsignedBigInteger('theater_id');
             $table->timestamps();
 
             $table->foreign('theater_id')

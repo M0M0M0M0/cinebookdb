@@ -24,7 +24,6 @@ return new class extends Migration
         });
 
         DB::statement("ALTER TABLE bookings ADD CONSTRAINT CHK_Booking_Status CHECK (status IN ('open','sold-out','cancelled','completed'))");
-        DB::statement("ALTER TABLE bookings ADD CONSTRAINT CHK_Booking_Date CHECK (booking_date <= GETDATE())");
         
 
         Schema::table('bookings', function (Blueprint $table) {

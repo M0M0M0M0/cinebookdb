@@ -14,8 +14,8 @@ return new class extends Migration
     public function up()
     {
         Schema::create('movie_genre', function (Blueprint $table) {
-            $table->unsignedBigInteger('movie_id');
-            $table->unsignedBigInteger('genre_id');
+            $table->integer('movie_id');
+            $table->integer('genre_id');
 
             $table->primary(['movie_id', 'genre_id']);
 

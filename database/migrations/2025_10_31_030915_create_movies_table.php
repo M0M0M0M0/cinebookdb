@@ -61,12 +61,6 @@ return new class extends Migration
 
         DB::statement("
             ALTER TABLE movies
-            ADD CONSTRAINT chk_release_date
-            CHECK (release_date IS NULL OR release_date <= CURRENT_DATE)
-        ");
-
-        DB::statement("
-            ALTER TABLE movies
             ADD CONSTRAINT chk_vote_average
             CHECK (vote_average IS NULL OR (vote_average >= 0 AND vote_average <= 10))
         ");

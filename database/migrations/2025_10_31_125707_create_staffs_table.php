@@ -15,7 +15,7 @@ return new class extends Migration
     public function up()
     {
         Schema::create('staffs', function (Blueprint $table) {
-            $table->uuid('staff_id')->primary()->default(DB::raw('(NEWID())'));
+            $table->uuid('staff_id')->primary();
             $table->string('full_name', 100);
             $table->date('date_of_birth');
             $table->string('address', 255);
@@ -25,10 +25,6 @@ return new class extends Migration
             $table->timestamps(); 
             $table->string('role_id', 10);
         });
-
-        DB::statement("ALTER TABLE staffs ADD CONSTRAINT CHK_Staff_FullName CHECK (LEN(full_name) >= 1)");
-        DB::statement("ALTER TABLE staffs ADD CONSTRAINT CHK_Staff_Address CHECK (LEN(address) >= 1)");
-        DB::statement("ALTER TABLE staffs ADD CONSTRAINT CHK_Staff_Phone CHECK (LEN(phone_number) >= 1)");
 
         Schema::table('staffs', function (Blueprint $table) {
             $table->foreign('role_id')->references('role_id')->on('roles')->onDelete('restrict');

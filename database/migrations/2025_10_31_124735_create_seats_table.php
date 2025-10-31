@@ -24,7 +24,6 @@ return new class extends Migration
         });
 
         // Validate
-        DB::statement("ALTER TABLE seats ADD CONSTRAINT CHK_Seat_Row CHECK (LEN(seat_row) = 1)");
         DB::statement("ALTER TABLE seats ADD CONSTRAINT CHK_Seat_Number CHECK (seat_number > 0)");
 
         // Fk

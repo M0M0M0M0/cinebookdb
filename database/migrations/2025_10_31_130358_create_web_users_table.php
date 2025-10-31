@@ -15,7 +15,7 @@ return new class extends Migration
     public function up()
     {
         Schema::create('web_users', function (Blueprint $table) {
-            $table->uuid('web_user_id')->primary()->default(DB::raw('(NEWID())'));
+            $table->uuid('web_user_id')->primary();
             $table->string('full_name', 100);
             $table->date('date_of_birth');
             $table->string('address', 255);
@@ -26,9 +26,6 @@ return new class extends Migration
             $table->string('role_id', 10);
         });
 
-        DB::statement("ALTER TABLE web_users ADD CONSTRAINT CHK_Web_Users_FullName CHECK (LEN(full_name) >= 1)");
-        DB::statement("ALTER TABLE web_users ADD CONSTRAINT CHK_Web_Users_Address CHECK (LEN(address) >= 1)");
-        DB::statement("ALTER TABLE web_users ADD CONSTRAINT CHK_Web_Users_Phone CHECK (LEN(phone_number) >= 1)");
 
         Schema::table('web_users', function (Blueprint $table) {
             $table->foreign('role_id')->references('role_id')->on('roles')->onDelete('restrict');

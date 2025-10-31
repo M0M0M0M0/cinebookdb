@@ -16,7 +16,7 @@ return new class extends Migration
     {
         Schema::create('showtimes', function (Blueprint $table) {
             $table->id('showtime_id');
-            $table->unsignedBigInteger('movie_id');
+            $table->integer('movie_id');
             $table->unsignedBigInteger('room_id');
             $table->dateTime('start_time');
             $table->dateTime('end_time');
@@ -27,7 +27,7 @@ return new class extends Migration
 
         DB::statement("ALTER TABLE showtimes ADD CONSTRAINT CHK_Showtime_BasePrice CHECK (base_price >= 0)");
         DB::statement("ALTER TABLE showtimes ADD CONSTRAINT CHK_Showtime_StartEnd CHECK (end_time > start_time)");
-        DB::statement("ALTER TABLE showtimes ADD CONSTRAINT CHK_Showtime_Status CHECK (LEN(status) >= 1)");
+
 
         Schema::table('showtimes', function (Blueprint $table) {
             $table->foreign('movie_id')->references('movie_id')->on('movies')->onDelete('restrict');

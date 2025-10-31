@@ -14,7 +14,7 @@ return new class extends Migration
     public function up()
     {
         Schema::create('rooms', function (Blueprint $table) {
-            $table->increments('room_id');
+            $table->id('room_id');
             $table->string('room_name', 100)->check('LENGTH(room_name) >= 1');
             $table->string('room_type', 30)->check('LENGTH(room_type) >= 1');
             $table->integer('theater_id');

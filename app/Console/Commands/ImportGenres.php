@@ -3,30 +3,25 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
+use App\Services\TmdbService;
+use App\Models\Genre;
 
 class ImportGenres extends Command
 {
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
-    protected $signature = 'command:name';
+    protected $signature = 'tmdb:import-genres';
+    protected $description = 'Import genres from TMDB API';
 
-    /**
-     * The console command description.
-     *
-     * @var string
-     */
-    protected $description = 'Command description';
-
-    /**
-     * Execute the console command.
-     *
-     * @return int
-     */
-    public function handle()
+    public function handle(TmdbService $tmdb)
     {
-        return Command::SUCCESS;
+        $data = $tmdb->getGenres();
+
+        foreach($data['genres'] as $g) {
+            Genre::updateOrCreate(
+                ['genre_id' => $g['id']],
+                ['name' => $g['name']]
+            );
+        }
+
+        $this->info("Genres imported OK");
     }
 }

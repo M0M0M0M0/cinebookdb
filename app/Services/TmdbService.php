@@ -38,6 +38,14 @@ class TmdbService
         'region' => 'US'
     ])->json();
     }
+    public function call($endpoint, $params = [])
+{
+    $params['api_key'] = $this->key;
+    $params['language'] = $params['language'] ?? 'en-US';
+
+    return Http::get("{$this->base}{$endpoint}", $params)->json();
+}
+
 
 
 }

@@ -23,6 +23,7 @@ return new class extends Migration
             $table->string('original_title', 255);
             $table->string('overview', 2000)->nullable();
             $table->string('poster_path', 255)->nullable();
+            $table->string('backdrop_path', 255)->nullable();
             $table->date('release_date')->nullable();
             $table->string('title', 255);
             $table->decimal('vote_average', 3, 1)->nullable();

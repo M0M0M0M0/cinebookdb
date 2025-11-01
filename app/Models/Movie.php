@@ -15,10 +15,15 @@ class Movie extends Model
         'original_title',
         'overview',
         'poster_path',
+        'backdrop_path',
         'release_date',
         'title',
         'vote_average',
         'duration',
         'trailer_link'
     ];
+    public function genres()
+    {
+        return $this->belongsToMany(Genre::class, 'movie_genre', 'movie_id', 'genre_id');
+    }
 }

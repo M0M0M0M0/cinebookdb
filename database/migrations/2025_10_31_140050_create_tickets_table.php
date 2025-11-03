@@ -25,6 +25,7 @@ return new class extends Migration
             $table->string('time_slot_modifier_id_snapshot', 10);
             $table->decimal('time_slot_modifier_snapshot', 12, 2);
             $table->decimal('final_ticket_price', 12, 2);
+            
             $table->timestamps();
 
             $table->foreign('booking_id')

@@ -2,21 +2,19 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\TmdbService;
+use App\Models\Movie;
+use Illuminate\Http\Request;
 
 class MovieController extends Controller
 {
-    protected $tmdb;
-
-    public function __construct(TmdbService $tmdb)
-    {
-        $this->tmdb = $tmdb;
-    }
-
-    // test function
     public function show($id)
     {
-        $movie = $this->tmdb->getMovie($id);
+        $movie = Movie::find($id);
+
+        if (!$movie) {
+            return response()->json(['message' => 'Movie not found'], 404);
+        }
+
         return response()->json($movie);
     }
 }

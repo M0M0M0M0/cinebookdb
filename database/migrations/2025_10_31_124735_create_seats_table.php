@@ -29,7 +29,7 @@ return new class extends Migration
         // Fk
         Schema::table('seats', function (Blueprint $table) {
             $table->foreign('seat_type_id')->references('seat_type_id')->on('seat_types')->onDelete('restrict');
-            $table->foreign('room_id')->references('room_id')->on('rooms')->onDelete('cascade');
+            $table->foreign('room_id')->references('room_id')->on('rooms')->onDelete('restrict');
         });
     }
 

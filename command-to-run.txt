@@ -1,0 +1,11 @@
+php artisan tmdb:import-genres
+php artisan tmdb:import-movies
+php artisan db:seeder --class:TheaterSeeder
+php artisan db:seeder --class:RoomSeeder
+php artisan db:seeder --class:SeatTypeSeeder
+php artisan db:seeder --class:SeatSeeder
+php artisan db:seeder --class:RoleSeeder
+
+
+php artisan db:seeder --class:StaffSeeder
+php artisan db:seeder --class:WebUserSeeder

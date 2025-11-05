@@ -12,7 +12,7 @@ class ShowtimeController extends Controller
     {
         $showtimes = Showtime::where('movie_id', $id)
             ->with('room.theater') // lấy thông tin room và theater
-            ->where('status', 'active')
+            ->where('status', 'open')
             ->get();
 
         return response()->json($showtimes);

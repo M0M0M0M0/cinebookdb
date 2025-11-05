@@ -8,6 +8,8 @@ use App\Http\Controllers\MovieController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\UserController;
 
+
+
 Route::get('/movies', function () {
     return Movie::with('genres')->orderBy('release_date', 'desc')->limit(60)->get();
 });
@@ -20,7 +22,9 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user-profile', [UserController::class, 'profile']);
-    Route::put('/user-profile', [UserController::class, 'updateProfile']);
     Route::patch('/user-profile/password', [UserController::class, 'changePassword']);
     Route::patch('/user-profile', [UserController::class, 'updateProfile']);
 });
+Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
+Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+

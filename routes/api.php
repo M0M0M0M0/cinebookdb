@@ -10,6 +10,10 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\Api\TheaterController;
 use App\Http\Controllers\Api\FoodController;
+use App\Http\Controllers\Api\SeatTypeController;
+use App\Http\Controllers\Api\TimeSlotModifierController;
+use App\Http\Controllers\Api\DayModifierController;
+use App\Http\Controllers\BookingController;
 
 /*
 |--------------------------------------------------------------------------
@@ -29,6 +33,7 @@ Route::get('/movies/{id}/showtimes', [ShowtimeController::class, 'getShowtimesBy
 // Theaters
 Route::apiResource('theaters', TheaterController::class);
 Route::get('/theaters/{id}/rooms', [TheaterController::class, 'getRooms']);
+Route::get('/showtimes-by-theater', [ShowtimeController::class, 'getShowtimesForTheaterPage']);
 
 // Cities - Get unique cities from theaters
 Route::get('/cities', function () {
@@ -58,7 +63,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/user-profile', [UserController::class, 'updateProfile']);
     Route::patch('/user-profile/password', [UserController::class, 'changePassword']);
 
+    // Bookings
+    Route::post('/bookings/create', [BookingController::class, 'createBooking']);
+
     // Logout
     Route::post('/logout', [AuthController::class, 'logout']);
 });
 Route::resource('foods', FoodController::class)->except(['create', 'edit']);
+Route::resource('seat-types', SeatTypeController::class)->except(['create', 'edit']);
+Route::resource('time-slot-modifiers', TimeSlotModifierController::class)->except(['create', 'edit']);
+Route::resource('day-modifiers', DayModifierController::class)->except(['create', 'edit']);
+Route::get('/showtimes/{showtime_id}/sold-seats', [BookingController::class, 'getSoldSeats']);

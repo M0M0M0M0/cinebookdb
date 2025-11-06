@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Showtime;
 use App\Models\Movie;
+use App\Models\Theater;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
@@ -280,5 +281,78 @@ class ShowtimeController extends Controller
             'movie_title' => $movie->title,
             'showtimes_by_date' => $formatted
         ]);
+    }
+    public function getShowtimesForTheaterPage()
+    {
+        // 1. Chỉ lấy các rạp CÓ suất chiếu (status = Available và trong tương lai)
+        // Lưu ý: Cần import App\Models\Theater ở đầu file
+        $theaters = \App\Models\Theater::whereHas('showtimes', function ($query) {
+            $query->available()->where('start_time', '>=', now());
+        })
+        ->with([
+            // 2. Tải trước các suất chiếu liên quan
+            'showtimes' => function ($query) {
+                $query->available()
+                      ->where('start_time', '>=', now())
+                      ->orderBy('start_time'); // Sắp xếp theo thời gian
+            },
+            // 3. Tải trước thông tin phim của các suất chiếu đó
+            'showtimes.movie'
+        ])
+        ->get();
+
+        // 4. Biến đổi (transform) dữ liệu
+        $formattedData = $theaters->map(function ($theater) {
+            
+            // Lấy tất cả suất chiếu của rạp này và nhóm chúng theo 'movie_id'
+            $showtimesByMovie = $theater->showtimes->groupBy('movie_id');
+
+            // 5. Lặp qua từng nhóm phim
+            $movies = $showtimesByMovie->map(function ($movieShowtimes) {
+                
+                // Lấy thông tin phim từ suất chiếu đầu tiên (vì tất cả đều là 1 phim)
+                $movie = $movieShowtimes->first()->movie;
+
+                // An toàn: Bỏ qua nếu không tìm thấy thông tin phim
+                if (!$movie) {
+                    return null;
+                }
+
+                // 6. Nhóm các suất chiếu của phim này THEO NGÀY
+                $showtimesByDate = $movieShowtimes->groupBy(function ($showtime) {
+                    return $showtime->start_time->format('Y-m-d');
+                });
+
+                // 7. Tạo mảng [ { date: "...", times: [...] }, ... ]
+                $formattedShowtimes = $showtimesByDate->map(function ($dayShowtimes, $date) {
+                    return [
+                        'date' => $date,
+                        'times' => $dayShowtimes->map(function ($showtime) {
+                            return $showtime->start_time->format('H:i');
+                        })->unique()->values(), // Lấy giờ, đảm bảo không trùng lặp
+                    ];
+                })->values(); // Dùng values() để reset key -> thành mảng JSON
+
+                // 8. Trả về cấu trúc phim hoàn chỉnh
+                return [
+                    'id' => $movie->movie_id,
+                    'title' => $movie->title,
+                    'poster' => $movie->poster, // Lấy từ accessor 'poster' trong Movie.php
+                    'showtimes' => $formattedShowtimes,
+                ];
+            })->filter()->values(); // filter() để loại bỏ các 'null'
+
+            // 9. Trả về cấu trúc rạp hoàn chỉnh
+            return [
+                'id' => $theater->theater_id,
+                'name' => $theater->theater_name,
+                'address' => $theater->theater_address,
+                'region' => $theater->theater_city, // Sử dụng theater_city làm region
+                'movies' => $movies,
+            ];
+        });
+
+        // 10. Trả về JSON
+        return response()->json($formattedData);
     }
 }

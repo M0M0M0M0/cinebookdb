@@ -36,6 +36,7 @@ class UserController extends Controller
     }
 
     // Đổi mật khẩu
+    // Đổi mật khẩu
     public function changePassword(Request $request)
     {
         $validated = $request->validate([
@@ -46,7 +47,7 @@ class UserController extends Controller
         $user = $request->user();
 
         // Kiểm tra mật khẩu hiện tại
-        if (!Hash::check($validated['current_password'], $user->password)) {
+        if (!Hash::check($validated['current_password'], $user->password_hash)) {
             return response()->json([
                 'message' => 'Mật khẩu hiện tại không đúng'
             ], 400);
@@ -54,11 +55,12 @@ class UserController extends Controller
 
         // Cập nhật mật khẩu mới
         $user->update([
-            'password' => Hash::make($validated['new_password']),
+            'password_hash' => Hash::make($validated['new_password']),
         ]);
 
         return response()->json([
             'message' => 'Đổi mật khẩu thành công'
         ]);
     }
+
 }

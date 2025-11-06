@@ -1,13 +1,19 @@
 <?php
 
+// app/Models/Movie.php
+
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Movie extends Model
 {
+    use HasFactory;
+
+    protected $table = 'movies';
     protected $primaryKey = 'movie_id';
-    public $incrementing = false;
+    public $incrementing = false; // vì movie_id là integer không auto increment
 
     protected $fillable = [
         'movie_id',
@@ -22,8 +28,28 @@ class Movie extends Model
         'duration',
         'trailer_link'
     ];
+
+    protected $casts = [
+        'release_date' => 'date',
+        'vote_average' => 'decimal:1'
+    ];
+
+    public function showtimes()
+    {
+        return $this->hasMany(Showtime::class, 'movie_id', 'movie_id');
+    }
     public function genres()
     {
         return $this->belongsToMany(Genre::class, 'movie_genre', 'movie_id', 'genre_id');
+    }
+
+
+    // Accessor for poster URL
+    public function getPosterAttribute()
+    {
+        if ($this->poster_path) {
+            return 'https://image.tmdb.org/t/p/original' . $this->poster_path;
+        }
+        return null;
     }
 }

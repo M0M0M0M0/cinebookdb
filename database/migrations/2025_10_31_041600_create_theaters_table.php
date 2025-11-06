@@ -18,7 +18,6 @@ return new class extends Migration
             $table->string('theater_name', 100)->check('LENGTH(theater_name) >= 1');
             $table->string('theater_address', 255)->check('LENGTH(theater_address) >= 1');
             $table->string('theater_city', 100)->check('LENGTH(theater_city) >= 1');
-            $table->integer('theater_capacity')->check('theater_capacity > 0');
             $table->timestamps();
         });
     }

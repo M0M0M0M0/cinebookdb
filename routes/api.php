@@ -68,9 +68,22 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Logout
     Route::post('/logout', [AuthController::class, 'logout']);
+
+    // 2. TẠO BOOKING (Bước 1: Giữ ghế / Lock Seats)
+    Route::post('/bookings/hold', [BookingController::class, 'holdSeats']);
+
+    // 3. CẬP NHẬT BOOKING (Bước 2: Thêm đồ ăn)
+    Route::put('/bookings/{booking_id}/foods', [BookingController::class, 'addFoods']);
+
+    // 4. THANH TOÁN (Bước 3: Finalize)
+    Route::post('/bookings/finalize', [BookingController::class, 'finalizePayment']);
 });
 Route::resource('foods', FoodController::class)->except(['create', 'edit']);
 Route::resource('seat-types', SeatTypeController::class)->except(['create', 'edit']);
 Route::resource('time-slot-modifiers', TimeSlotModifierController::class)->except(['create', 'edit']);
 Route::resource('day-modifiers', DayModifierController::class)->except(['create', 'edit']);
+
+Route::post('/bookings', [BookingController::class,'create']);
+
+// 1. Lấy ghế đã bán (bao gồm cả ghế đang được giữ)
 Route::get('/showtimes/{showtime_id}/sold-seats', [BookingController::class, 'getSoldSeats']);

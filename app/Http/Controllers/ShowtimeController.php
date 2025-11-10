@@ -73,11 +73,11 @@ class ShowtimeController extends Controller
      */
     public function store(Request $request)
     {
+        // First validate the basic format
         $validator = Validator::make($request->all(), [
             'movie_id' => 'required|exists:movies,movie_id',
             'room_id' => 'required|exists:rooms,room_id',
-            'date' => 'required|date|after_or_equal:today',
-            'start_time' => 'required|date_format:H:i',
+            'start_time' => 'required|string',
             'price' => 'required|numeric|min:0',
             'status' => 'in:Available,Full,Cancelled'
         ]);
@@ -86,14 +86,24 @@ class ShowtimeController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
+        // Try to parse the datetime
+        try {
+            $startDateTime = Carbon::parse($request->start_time);
+        } catch (\Exception $e) {
+            return response()->json(['errors' => ['start_time' => ['Invalid datetime format']]], 422);
+        }
+
+        // Check if the datetime is in the future
+        if ($startDateTime->isPast()) {
+            return response()->json(['errors' => ['start_time' => ['The start time must be a future date']]], 422);
+        }
+
         // Get movie duration to calculate end_time
         $movie = Movie::find($request->movie_id);
         if (!$movie || !$movie->duration) {
             return response()->json(['error' => 'Movie duration not found'], 400);
         }
 
-        // Combine date and time
-        $startDateTime = Carbon::parse($request->date . ' ' . $request->start_time);
         $endDateTime = $startDateTime->copy()->addMinutes($movie->duration + 15); // +15 min for cleanup
 
         // Check for conflicts
@@ -152,8 +162,7 @@ class ShowtimeController extends Controller
         $validator = Validator::make($request->all(), [
             'movie_id' => 'sometimes|exists:movies,movie_id',
             'room_id' => 'sometimes|exists:rooms,room_id',
-            'date' => 'sometimes|date',
-            'start_time' => 'sometimes|date_format:H:i',
+            'start_time' => 'sometimes|date',
             'price' => 'sometimes|numeric|min:0',
             'status' => 'sometimes|in:Available,Full,Cancelled'
         ]);
@@ -162,11 +171,9 @@ class ShowtimeController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        // Update start_time if date or start_time changed
-        if ($request->has('date') || $request->has('start_time')) {
-            $date = $request->date ?? $showtime->start_time->format('Y-m-d');
-            $time = $request->start_time ?? $showtime->start_time->format('H:i');
-            $startDateTime = Carbon::parse($date . ' ' . $time);
+        // Update start_time if provided
+        if ($request->has('start_time')) {
+            $startDateTime = Carbon::parse($request->start_time);
 
             // Recalculate end_time
             $movieId = $request->movie_id ?? $showtime->movie_id;
@@ -213,6 +220,7 @@ class ShowtimeController extends Controller
 
         return response()->json(['message' => 'Showtime deleted successfully']);
     }
+
     public function getShowtimesByMovie($movieId, Request $request)
     {
         // Check if movie exists
@@ -269,7 +277,7 @@ class ShowtimeController extends Controller
                             'end_time' => $showtime->end_time->format('H:i'),
                             'base_price' => $showtime->base_price,
                             'status' => $showtime->status,
-                            'available_seats' => $showtime->room->seat_capacity // Nếu bạn có field này
+                            'available_seats' => $showtime->room->seat_capacity
                         ];
                     })->values()
                 ];
@@ -282,77 +290,62 @@ class ShowtimeController extends Controller
             'showtimes_by_date' => $formatted
         ]);
     }
+
     public function getShowtimesForTheaterPage()
     {
-        // 1. Chỉ lấy các rạp CÓ suất chiếu (status = Available và trong tương lai)
-        // Lưu ý: Cần import App\Models\Theater ở đầu file
         $theaters = \App\Models\Theater::whereHas('showtimes', function ($query) {
             $query->available()->where('start_time', '>=', now());
         })
         ->with([
-            // 2. Tải trước các suất chiếu liên quan
             'showtimes' => function ($query) {
                 $query->available()
                       ->where('start_time', '>=', now())
-                      ->orderBy('start_time'); // Sắp xếp theo thời gian
+                      ->orderBy('start_time');
             },
-            // 3. Tải trước thông tin phim của các suất chiếu đó
             'showtimes.movie'
         ])
         ->get();
 
-        // 4. Biến đổi (transform) dữ liệu
         $formattedData = $theaters->map(function ($theater) {
-            
-            // Lấy tất cả suất chiếu của rạp này và nhóm chúng theo 'movie_id'
             $showtimesByMovie = $theater->showtimes->groupBy('movie_id');
 
-            // 5. Lặp qua từng nhóm phim
             $movies = $showtimesByMovie->map(function ($movieShowtimes) {
-                
-                // Lấy thông tin phim từ suất chiếu đầu tiên (vì tất cả đều là 1 phim)
                 $movie = $movieShowtimes->first()->movie;
 
-                // An toàn: Bỏ qua nếu không tìm thấy thông tin phim
                 if (!$movie) {
                     return null;
                 }
 
-                // 6. Nhóm các suất chiếu của phim này THEO NGÀY
                 $showtimesByDate = $movieShowtimes->groupBy(function ($showtime) {
                     return $showtime->start_time->format('Y-m-d');
                 });
 
-                // 7. Tạo mảng [ { date: "...", times: [...] }, ... ]
                 $formattedShowtimes = $showtimesByDate->map(function ($dayShowtimes, $date) {
                     return [
                         'date' => $date,
                         'times' => $dayShowtimes->map(function ($showtime) {
                             return $showtime->start_time->format('H:i');
-                        })->unique()->values(), // Lấy giờ, đảm bảo không trùng lặp
+                        })->unique()->values(),
                     ];
-                })->values(); // Dùng values() để reset key -> thành mảng JSON
+                })->values();
 
-                // 8. Trả về cấu trúc phim hoàn chỉnh
                 return [
                     'id' => $movie->movie_id,
                     'title' => $movie->title,
-                    'poster' => $movie->poster, // Lấy từ accessor 'poster' trong Movie.php
+                    'poster' => $movie->poster,
                     'showtimes' => $formattedShowtimes,
                 ];
-            })->filter()->values(); // filter() để loại bỏ các 'null'
+            })->filter()->values();
 
-            // 9. Trả về cấu trúc rạp hoàn chỉnh
             return [
                 'id' => $theater->theater_id,
                 'name' => $theater->theater_name,
                 'address' => $theater->theater_address,
-                'region' => $theater->theater_city, // Sử dụng theater_city làm region
+                'region' => $theater->theater_city,
                 'movies' => $movies,
             ];
         });
 
-        // 10. Trả về JSON
         return response()->json($formattedData);
     }
 }

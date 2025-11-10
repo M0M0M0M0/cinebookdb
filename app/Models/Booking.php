@@ -19,4 +19,8 @@ class Booking extends Model
     ];
 
     protected $dates = ['expires_at'];
+    public function showtime()
+    {
+        return $this->belongsTo(Showtime::class, 'showtime_id', 'showtime_id');
+    }
 }

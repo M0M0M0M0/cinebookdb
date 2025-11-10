@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\SeatTypeController;
 use App\Http\Controllers\Api\TimeSlotModifierController;
 use App\Http\Controllers\Api\DayModifierController;
 use App\Http\Controllers\BookingController;
+use App\Http\Controllers\GenreController;
 
 /*
 |--------------------------------------------------------------------------
@@ -22,12 +23,17 @@ use App\Http\Controllers\BookingController;
 */
 
 // ========== PUBLIC ROUTES ==========
+// Genres
+Route::get('/genres', [GenreController::class, 'index']);
 
 // Movies
 Route::get('/movies', function () {
     return Movie::with('genres')->orderBy('release_date', 'desc')->limit(60)->get();
 });
 Route::get('/movies/{id}', [MovieController::class, 'show']);
+Route::post('/movies', [MovieController::class, 'store']);
+Route::put('/movies/{id}', [MovieController::class, 'update']);
+Route::delete('/movies/{id}', [MovieController::class, 'destroy']);
 Route::get('/movies/{id}/showtimes', [ShowtimeController::class, 'getShowtimesByMovie']);
 
 // Theaters
@@ -62,6 +68,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user-profile', [UserController::class, 'profile']);
     Route::patch('/user-profile', [UserController::class, 'updateProfile']);
     Route::patch('/user-profile/password', [UserController::class, 'changePassword']);
+    // Check all pending bookings for user
+    Route::get('/bookings/check-pending-all', [BookingController::class, 'checkPendingAll']);
 
     // Bookings
     Route::post('/bookings/create', [BookingController::class, 'createBooking']);
@@ -77,6 +85,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // 4. THANH TOÁN (Bước 3: Finalize)
     Route::post('/bookings/finalize', [BookingController::class, 'finalizePayment']);
+    // Kiểm tra trạng thái booking đang giữ
+    Route::post('/bookings/check-pending', [BookingController::class, 'checkPendingBooking']);
+    // Hủy booking đang giữ
+    Route::post('/bookings/cancel', [BookingController::class, 'cancelBooking']);
+    // Cập nhật ghế trong booking đang giữ
+    Route::put('/bookings/update-seats', [BookingController::class, 'updateSeats']);
 });
 Route::resource('foods', FoodController::class)->except(['create', 'edit']);
 Route::resource('seat-types', SeatTypeController::class)->except(['create', 'edit']);

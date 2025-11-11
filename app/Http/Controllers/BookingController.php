@@ -12,6 +12,47 @@ use App\Models\TimeSlotModifier;
 
 class BookingController extends Controller
 {
+    public function validateBooking($booking_id)
+    {
+        try {
+            $booking = Booking::find($booking_id);
+
+            if (!$booking) {
+                return response()->json([
+                    'success' => false,
+                    'is_valid' => false,
+                    'message' => 'Booking not found'
+                ], 404);
+            }
+
+            // Kiểm tra booking có thuộc user hiện tại không
+            if ((string)$booking->web_user_id !== (string)auth()->id()) {
+                return response()->json([
+                    'success' => false,
+                    'is_valid' => false,
+                    'message' => 'Unauthorized'
+                ], 403);
+            }
+
+            // Kiểm tra booking đã hết hạn chưa
+            $isExpired = now()->greaterThan($booking->expires_at);
+
+            return response()->json([
+                'success' => true,
+                'is_valid' => !$isExpired && $booking->status === 'pending',
+                'status' => $booking->status,
+                'expired' => $isExpired,
+                'expires_at' => $booking->expires_at
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'is_valid' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
     protected function getDayModifierForShowtime(Showtime $showtime)
     {
         // Lấy ngày trong tuần (0 = Sunday, 6 = Saturday)
@@ -292,7 +333,8 @@ class BookingController extends Controller
                             ->where('expires_at', '>', now());
                     });
             })
-            ->select('seats_snapshot')
+            ->select('seats_snapshot', 'web_user_id', 'booking_id')
+
             ->get();
 
         $soldSeats = [];
@@ -301,15 +343,20 @@ class BookingController extends Controller
                 $seats = json_decode($booking->seats_snapshot, true);
                 if (is_array($seats)) {
                     foreach ($seats as $seat) {
-                        if (is_string($seat)) {
-                            $soldSeats[] = ['code' => $seat, 'status' => 'sold'];
-                        } elseif (isset($seat['code'])) {
-                            $soldSeats[] = ['code' => $seat['code'], 'status' => 'sold'];
+                        $code = is_string($seat) ? $seat : ($seat['code'] ?? null);
+                        if ($code) {
+                            $soldSeats[] = [
+                                'code' => $code,
+                                'status' => 'sold',
+                                'web_user_id' => $booking->web_user_id,
+                                'booking_id' => $booking->booking_id,
+                            ];
                         }
                     }
                 }
             }
         }
+
 
         // Remove duplicates
         $soldSeats = array_values(array_unique($soldSeats, SORT_REGULAR));

@@ -91,6 +91,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/bookings/cancel', [BookingController::class, 'cancelBooking']);
     // Cập nhật ghế trong booking đang giữ
     Route::put('/bookings/update-seats', [BookingController::class, 'updateSeats']);
+    // 5. XÁC THỰC BOOKING (Validate booking)
+    Route::get('/bookings/{booking_id}/validate', [BookingController::class, 'validateBooking']);
 });
 Route::resource('foods', FoodController::class)->except(['create', 'edit']);
 Route::resource('seat-types', SeatTypeController::class)->except(['create', 'edit']);

@@ -9,3 +9,4 @@ php artisan db:seed --class=RoleSeeder
 
 php artisan db:seed --class=StaffSeeder
 php artisan db:seed --class=WebUserSeeder
+php artisan db:seed --class=FoodSeeder

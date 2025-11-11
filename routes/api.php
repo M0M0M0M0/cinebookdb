@@ -12,7 +12,8 @@ use App\Http\Controllers\Api\TheaterController;
 use App\Http\Controllers\Api\FoodController;
 use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\SeatController;
-
+use App\Http\Controllers\UserProfileController;
+use App\Http\Controllers\BookingController;
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -62,9 +63,11 @@ Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 // ========== PROTECTED ROUTES (Require Authentication) ==========
 Route::middleware('auth:sanctum')->group(function () {
     // User Profile
-    Route::get('/user-profile', [UserController::class, 'profile']);
-    Route::patch('/user-profile', [UserController::class, 'updateProfile']);
-    Route::patch('/user-profile/password', [UserController::class, 'changePassword']);
+    Route::get('/user-profile', [UserProfileController::class, 'profile']);
+    Route::patch('/user-profile', [UserProfileController::class, 'updateProfile']);
+    Route::patch('/user-profile/password', [UserProfileController::class, 'changePassword']);
+     // ✅ API: Lịch sử đặt vé + vé sắp chiếu
+    Route::get('/user/bookings', [BookingController::class, 'getUserBookings']);
     // Check all pending bookings for user
     Route::get('/bookings/check-pending-all', [BookingController::class, 'checkPendingAll']);
 

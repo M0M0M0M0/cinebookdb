@@ -21,16 +21,39 @@ class RoomController extends Controller
 
     // Create a new room
     public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'room_name' => 'required|string|max:100',
-            'room_type' => 'required|string|max:30',
-            'theater_id' => 'required|exists:theaters,theater_id'
-        ]);
+{
+    $validated = $request->validate([
+        'room_name' => 'required|string|max:100',
+        'room_type' => 'required|string|max:30',
+        'theater_id' => 'required|integer|exists:theaters,theater_id',
+    ]);
 
-        $room = Room::create($validated);
-        return response()->json($room, 201);
+    $room = \App\Models\Room::create($validated);
+
+    // Auto-generate seats
+    $rows = range('A', 'H');
+    $seatsPerRow = 16;
+
+    foreach ($rows as $row) {
+        for ($num = 1; $num <= $seatsPerRow; $num++) {
+            $type = 'GLD';
+            if ($row === 'H') $type = 'BOX';
+            elseif ($num <= 2 || $num >= 15) $type = 'STD';
+            elseif ($num >= 5 && $num <= 10) $type = 'PLT';
+
+            \App\Models\Seat::create([
+                'seat_row' => $row,
+                'seat_number' => $num,
+                'seat_type_id' => $type,
+                'room_id' => $room->room_id,
+            ]);
+        }
     }
+
+    $room->load(['seats']); // include seats if you want
+    return response()->json($room, 201);
+}
+
 
     // Update a room
     public function update(Request $request, $id)
@@ -49,4 +72,17 @@ class RoomController extends Controller
 
         return response()->json(['message' => 'Room deleted successfully']);
     }
+
+    // Delete all seats for a specific room (for seat layout reset)
+public function deleteSeats($room_id)
+{
+    $room = Room::findOrFail($room_id);
+    $room->seats()->delete();
+
+    return response()->json([
+        'success' => true,
+        'message' => "All seats deleted for room ID {$room_id}"
+    ]);
+}
+
 }

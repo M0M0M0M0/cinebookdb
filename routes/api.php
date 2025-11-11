@@ -10,6 +10,11 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\Api\TheaterController;
 use App\Http\Controllers\Api\FoodController;
+use App\Http\Controllers\Api\SeatTypeController;
+use App\Http\Controllers\Api\TimeSlotModifierController;
+use App\Http\Controllers\Api\DayModifierController;
+use App\Http\Controllers\Api\RoomController;
+use App\Http\Controllers\Api\SeatController;
 
 /*
 |--------------------------------------------------------------------------
@@ -62,3 +67,17 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
 });
 Route::resource('foods', FoodController::class)->except(['create', 'edit']);
+Route::resource('seat-types', SeatTypeController::class)->except(['create', 'edit']);
+Route::resource('time-slot-modifiers', TimeSlotModifierController::class)->except(['create', 'edit']);
+Route::resource('day-modifiers', DayModifierController::class)->except(['create', 'edit']);
+
+// Rooms API
+Route::get('/theaters/{theater_id}/rooms', [RoomController::class, 'index']);
+Route::post('/rooms', [RoomController::class, 'store']);
+Route::put('/rooms/{id}', [RoomController::class, 'update']);
+Route::delete('/rooms/{id}', [RoomController::class, 'destroy']);
+
+// Seats API
+Route::get('/rooms/{room_id}/seats', [SeatController::class, 'index']);
+Route::post('/seats', [SeatController::class, 'store']);
+Route::delete('/seats/{id}', [SeatController::class, 'destroy']);

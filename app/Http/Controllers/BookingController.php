@@ -209,22 +209,43 @@ class BookingController extends Controller
     public function finalizePayment(Request $request)
     {
         $request->validate([
-            'booking_id' => 'required|exists:bookings,booking_id'
+            'booking_id' => 'required|exists:bookings,booking_id',
+            'seat_codes' => 'nullable|array' // Optional: frontend có thể gửi để double-check
         ]);
 
         $booking = Booking::with('showtime')->find($request->booking_id);
 
+        // ✅ 1. VALIDATE BOOKING
         if (!$booking || $booking->status !== 'pending') {
-            return response()->json(['success' => false,'message' => 'Invalid Booking'], 400);
-        }
-        if (!$booking->showtime) {
-            return response()->json(['success' => false,'message' => 'Showtime not found'], 404);
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid Booking or already completed'
+            ], 400);
         }
 
+        // ✅ 2. CHECK AUTHORIZATION
+        if ((string)$booking->web_user_id !== (string)auth()->id()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized'
+            ], 403);
+        }
+
+        // ✅ 3. CHECK EXPIRATION
         if (now()->greaterThan($booking->expires_at)) {
-            // hết hạn → xoá booking
             $booking->delete();
-            return response()->json(['success' => false,'message' => 'Booking expired'], 410);
+            return response()->json([
+                'success' => false,
+                'message' => 'Booking expired'
+            ], 410);
+        }
+
+        // ✅ 4. CHECK SHOWTIME EXISTS
+        if (!$booking->showtime) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Showtime not found'
+            ], 404);
         }
 
         DB::beginTransaction();
@@ -233,77 +254,208 @@ class BookingController extends Controller
             $showtime = $booking->showtime;
             $basePrice = $showtime->base_price;
 
+            // ✅ 5. GET MODIFIERS
             $dayModifier  = $this->getDayModifierForShowtime($showtime);
             $timeModifier = $this->getTimeSlotModifierForShowtime($showtime);
 
-            // ⬅️ SỬA: Lấy seat_codes từ seats_snapshot của booking
+            // ✅ 6. GET SEAT CODES
             $seatCodes = json_decode($booking->seats_snapshot, true);
 
-            // Nếu frontend gửi seat_codes, ưu tiên dùng từ request
+            // Frontend có thể gửi seat_codes để double-check
             if ($request->has('seat_codes') && is_array($request->seat_codes)) {
                 $seatCodes = $request->seat_codes;
+                // Update lại snapshot nếu khác
+                $booking->seats_snapshot = json_encode($seatCodes);
             }
 
-            // ⬅️ THÊM: Validation
             if (empty($seatCodes) || !is_array($seatCodes)) {
-                throw new \Exception('No seat codes found');
+                throw new \Exception('No seat codes found in booking');
             }
 
+            // ✅ 7. VALIDATE SEATS ARE STILL AVAILABLE
+            // Kiểm tra xem có booking khác đã book các ghế này không
+            $conflictingBookings = DB::table('bookings')
+                ->where('showtime_id', $booking->showtime_id)
+                ->where('booking_id', '!=', $booking->booking_id)
+                ->where(function ($q) {
+                    $q->where('status', 'completed')
+                        ->orWhere(function ($qq) {
+                            $qq->where('status', 'pending')
+                                ->where('expires_at', '>', now());
+                        });
+                })
+                ->get();
+
+            $reservedSeats = [];
+            foreach ($conflictingBookings as $b) {
+                $seats = json_decode($b->seats_snapshot, true) ?? [];
+                $reservedSeats = array_merge($reservedSeats, $seats);
+            }
+
+            $conflicts = array_intersect($seatCodes, $reservedSeats);
+            if (count($conflicts) > 0) {
+                throw new \Exception('Some seats are no longer available: ' . implode(', ', $conflicts));
+            }
+
+            // ✅ 8. GET SEAT DATA FROM DATABASE
             $seatsData = DB::table('seats as s')
                 ->join('seat_types as st', 's.seat_type_id', '=', 'st.seat_type_id')
                 ->where('s.room_id', $showtime->room_id)
-                ->whereIn(DB::raw("CONCAT(s.seat_row,s.seat_number)"), $seatCodes)
-                ->select('s.seat_id', 's.seat_type_id', 'st.seat_type_price')
+                ->whereIn(DB::raw("CONCAT(s.seat_row, s.seat_number)"), $seatCodes)
+                ->select(
+                    's.seat_id',
+                    's.seat_row',
+                    's.seat_number',
+                    's.seat_type_id',
+                    'st.seat_type_name',
+                    'st.seat_type_price'
+                )
                 ->get();
 
-            $total = 0;
-
-            foreach ($seatsData as $s) {
-                $priceBefore  = $basePrice + $s->seat_type_price;
-                $priceAfterDay = $priceBefore * $dayModifier['multiplier'];
-                $final         = $priceAfterDay * $timeModifier['multiplier'];
-                $total += $final;
-
-                Ticket::create([
-                    'booking_id' => $booking->booking_id,
-                    'seat_id'    => $s->seat_id,
-                    'base_price_snapshot' => $basePrice,
-                    'seat_type_id_snapshot' => $s->seat_type_id,
-                    'seat_type_price_snapshot' => $s->seat_type_price,
-                    'day_modifier_id_snapshot' => $dayModifier['id'],
-                    'day_modifier_snapshot' => $dayModifier['multiplier'],
-                    'time_slot_modifier_id_snapshot' => $timeModifier['id'],
-                    'time_slot_modifier_snapshot' => $timeModifier['multiplier'],
-                    'final_ticket_price' => round($final, 2)
-                ]);
+            if ($seatsData->count() !== count($seatCodes)) {
+                throw new \Exception('Some seats not found in database');
             }
 
-            // update booking
+            // ✅ 9. CREATE TICKETS AND CALCULATE TOTAL
+            $total = 0;
+            $ticketsCreated = [];
+
+            foreach ($seatsData as $s) {
+                // Check for custom seat price for this showtime
+                $customPrice = DB::table('showtime_seat_type_prices')
+                    ->where('showtime_id', $booking->showtime_id)
+                    ->where('seat_type_id', $s->seat_type_id)
+                    ->where('is_active', 1)
+                    ->value('custom_seat_price');
+
+                $seatTypePrice = $customPrice ?? $s->seat_type_price;
+
+                // Base price + seat type price
+                $priceBeforeModifiers = $basePrice + $seatTypePrice;
+
+                // Apply Day Modifier
+                if (isset($dayModifier['type']) && $dayModifier['type'] === 'fixed') {
+                    $priceAfterDay = $priceBeforeModifiers + $dayModifier['fixed_amount'];
+                    $dayModifierValue = $dayModifier['fixed_amount'];
+                } else {
+                    $priceAfterDay = $priceBeforeModifiers * $dayModifier['multiplier'];
+                    $dayModifierValue = $dayModifier['multiplier'];
+                }
+
+                // Apply Time Slot Modifier
+                if (isset($timeModifier['type']) && $timeModifier['type'] === 'fixed') {
+                    $finalPrice = $priceAfterDay + $timeModifier['fixed_amount'];
+                    $timeModifierValue = $timeModifier['fixed_amount'];
+                } else {
+                    $finalPrice = $priceAfterDay * $timeModifier['multiplier'];
+                    $timeModifierValue = $timeModifier['multiplier'];
+                }
+
+                $finalPrice = round($finalPrice, 2);
+                $total += $finalPrice;
+
+                // ✅ CREATE TICKET
+                $ticket = Ticket::create([
+                    'booking_id' => $booking->booking_id,
+                    'seat_id' => $s->seat_id,
+                    'base_price_snapshot' => $basePrice,
+                    'seat_type_id_snapshot' => $s->seat_type_id,
+                    'seat_type_price_snapshot' => $seatTypePrice,
+                    'day_modifier_id_snapshot' => $dayModifier['id'],
+                    'day_modifier_snapshot' => $dayModifierValue,
+                    'time_slot_modifier_id_snapshot' => $timeModifier['id'],
+                    'time_slot_modifier_snapshot' => $timeModifierValue,
+                    'final_ticket_price' => $finalPrice
+                ]);
+
+                $ticketsCreated[] = [
+                    'ticket_id' => $ticket->ticket_id,
+                    'seat_code' => $s->seat_row . $s->seat_number,
+                    'seat_type' => $s->seat_type_name,
+                    'price' => $finalPrice
+                ];
+            }
+
+            // ✅ 10. UPDATE BOOKING STATUS TO COMPLETED
             $booking->status = 'completed';
             $booking->save();
 
             DB::commit();
 
+            // ✅ 11. RETURN SUCCESS RESPONSE
             return response()->json([
                 'success' => true,
-                'message' => 'Payment completed',
-                'total_amount' => round($total, 2)
+                'message' => 'Payment completed successfully',
+                'data' => [
+                    'booking_id' => $booking->booking_id,
+                    'total_amount' => round($total, 2),
+                    'tickets' => $ticketsCreated,
+                    'seat_count' => count($ticketsCreated)
+                ]
             ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
 
-            // ⬅️ THÊM: Log error để debug
             \Log::error('Finalize payment error:', [
+                'booking_id' => $booking->booking_id ?? null,
+                'user_id' => auth()->id(),
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'unexpected error: ' . $e->getMessage() // ⬅️ Trả về message chi tiết hơn
+                'message' => 'Payment failed: ' . $e->getMessage()
             ], 500);
         }
+    }
+    /**
+     * Lấy thông tin tickets của một booking
+     */
+    public function getBookingTickets($booking_id)
+    {
+        $booking = Booking::with(['showtime.movie', 'tickets.seat.seatType'])
+            ->find($booking_id);
+
+        if (!$booking) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Booking not found'
+            ], 404);
+        }
+
+        // Check authorization
+        if ((string)$booking->web_user_id !== (string)auth()->id()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized'
+            ], 403);
+        }
+
+        $tickets = $booking->tickets->map(function ($ticket) {
+            return [
+                'ticket_id' => $ticket->ticket_id,
+                'seat_code' => $ticket->seat->seat_row . $ticket->seat->seat_number,
+                'seat_type' => $ticket->seat->seatType->seat_type_name ?? 'Unknown',
+                'final_price' => $ticket->final_ticket_price,
+                'base_price' => $ticket->base_price_snapshot,
+                'seat_type_price' => $ticket->seat_type_price_snapshot,
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'booking_id' => $booking->booking_id,
+                'status' => $booking->status,
+                'movie_title' => $booking->showtime->movie->title ?? 'Unknown',
+                'showtime' => $booking->showtime->start_time->format('d/m/Y H:i'),
+                'tickets' => $tickets,
+                'total_amount' => $tickets->sum('final_price'),
+                'created_at' => $booking->created_at->toISOString(),
+            ]
+        ]);
     }
 
     // -------------------------------------------------
@@ -678,6 +830,114 @@ class BookingController extends Controller
                 'expires_at' => $pendingBooking->expires_at->toISOString(),
                 'time_remaining' => now()->diffInSeconds($pendingBooking->expires_at, false), // Giây còn lại
             ],
+        ]);
+    }
+    /**
+ * Lấy tất cả bookings của user (cả pending và completed)
+ */
+    public function getUserBookings(Request $request)
+    {
+        $userId = auth()->id();
+
+        // Lấy bookings với eager loading
+        $bookings = Booking::where('web_user_id', $userId)
+            ->with([
+                'showtime.movie',
+                'showtime.room.theater',
+                'tickets.seat.seatType'
+            ])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // Phân loại bookings
+        $currentBookings = [];
+        $historyBookings = [];
+
+        foreach ($bookings as $booking) {
+            // Lấy thông tin movie và showtime
+            $movie = $booking->showtime->movie ?? null;
+            $showtime = $booking->showtime;
+            $theater = $showtime->room->theater ?? null;
+
+            // Parse seats từ snapshot
+            $seatCodes = json_decode($booking->seats_snapshot, true) ?? [];
+
+            // Lấy thông tin tickets
+            $tickets = $booking->tickets->map(function ($ticket) {
+                return [
+                    'ticket_id' => $ticket->ticket_id,
+                    'seat_code' => $ticket->seat->seat_row . $ticket->seat->seat_number,
+                    'seat_type' => $ticket->seat->seatType->seat_type_name ?? 'Unknown',
+                    'price' => $ticket->final_ticket_price,
+                ];
+            });
+
+            // Parse foods từ snapshot
+            $foods = json_decode($booking->foods_snapshot, true) ?? [];
+            $foodTotal = 0;
+            if (!empty($foods)) {
+                foreach ($foods as $food) {
+                    $foodTotal += ($food['price'] ?? 0) * ($food['quantity'] ?? 0);
+                }
+            }
+
+            // Tính tổng tiền từ tickets
+            $ticketTotal = $tickets->sum('price');
+            $grandTotal = $ticketTotal + $foodTotal;
+
+            // Kiểm tra showtime đã qua chưa
+            $isPast = $showtime->start_time->isPast();
+            $isExpired = $booking->status === 'pending' && now()->greaterThan($booking->expires_at);
+
+            $bookingData = [
+                'booking_id' => $booking->booking_id,
+                'movie_id' => $movie ? $movie->movie_id : null,
+                'movie_title' => $movie ? $movie->title : 'Unknown',
+                'poster' => $movie ? $movie->poster_path : null,
+                'theater_name' => $theater ? $theater->theater_name : 'Unknown',
+                'theater_address' => $theater ? $theater->address : 'N/A',
+                'room_name' => $showtime->room->room_name ?? 'N/A',
+                'showtime_date' => $showtime->start_time->format('Y-m-d'),
+                'showtime_time' => $showtime->start_time->format('H:i'),
+                'showtime_full' => $showtime->start_time->format('d/m/Y H:i'),
+                'duration' => $movie ? $movie->duration . ' minutes' : 'N/A',
+                'language' => $movie ? ($movie->language ?? 'English') : 'N/A',
+                'format' => '2D', // Hoặc lấy từ showtime nếu có
+                'seats' => $seatCodes,
+                'seat_types' => $tickets->pluck('seat_type')->unique()->values(),
+                'tickets' => $tickets,
+                'foods' => $foods,
+                'ticket_total' => round($ticketTotal, 2),
+                'food_total' => round($foodTotal, 2),
+                'grand_total' => round($grandTotal, 2),
+                'status' => $booking->status,
+                'payment_method' => 'Card', // Thêm field này vào DB nếu cần
+                'created_at' => $booking->created_at->format('d/m/Y H:i'),
+                'expires_at' => $booking->expires_at ? $booking->expires_at->format('d/m/Y H:i') : null,
+                'is_expired' => $isExpired,
+                'is_past' => $isPast,
+            ];
+
+            // Phân loại
+            if ($booking->status === 'completed' && $isPast) {
+                // Vé đã xem (past)
+                $historyBookings[] = $bookingData;
+            } elseif ($booking->status === 'completed' && !$isPast) {
+                // Vé sắp xem (current)
+                $currentBookings[] = $bookingData;
+            } elseif ($booking->status === 'pending' && !$isExpired) {
+                // Vé đang pending (current)
+                $currentBookings[] = $bookingData;
+            }
+            // Cancelled hoặc expired không hiển thị
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'current_bookings' => $currentBookings,
+                'history_bookings' => $historyBookings,
+            ]
         ]);
     }
 }

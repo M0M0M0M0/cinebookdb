@@ -30,4 +30,9 @@ class Booking extends Model
     {
         return $this->belongsTo(WebUser::class, 'web_user_id', 'web_user_id');
     }
+    // ✅ THÊM: Relationship với tickets
+    public function tickets()
+{
+    return $this->hasMany(Ticket::class, 'booking_id', 'booking_id');
+}
 }

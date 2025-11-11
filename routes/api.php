@@ -93,6 +93,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/bookings/update-seats', [BookingController::class, 'updateSeats']);
     // 5. XÁC THỰC BOOKING (Validate booking)
     Route::get('/bookings/{booking_id}/validate', [BookingController::class, 'validateBooking']);
+    // Lấy vé cho booking
+    Route::get('/bookings/{booking_id}/tickets', [BookingController::class, 'getBookingTickets']);
+    // Get user bookings
+    Route::get('/user/bookings', [BookingController::class, 'getUserBookings']);
 });
 Route::resource('foods', FoodController::class)->except(['create', 'edit']);
 Route::resource('seat-types', SeatTypeController::class)->except(['create', 'edit']);

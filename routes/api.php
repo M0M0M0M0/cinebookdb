@@ -107,3 +107,9 @@ Route::delete('/rooms/{id}', [RoomController::class, 'destroy']);
 Route::get('/rooms/{room_id}/seats', [SeatController::class, 'index']);
 Route::post('/seats', [SeatController::class, 'store']);
 Route::delete('/seats/{id}', [SeatController::class, 'destroy']);
+
+//User API
+Route::get('/users', [UserController::class, 'index']);
+Route::put('/users/{id}', [UserController::class, 'update']);
+Route::delete('/users/{id}', [UserController::class, 'destroy']);
+Route::patch('/users/{id}/toggle', [UserController::class, 'toggleStatus']);

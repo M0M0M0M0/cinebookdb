@@ -34,8 +34,9 @@ class User extends Authenticatable
     ];
 
     protected $casts = [
-        'date_of_birth' => 'date',
+    'date_of_birth' => 'date:Y-m-d',
     ];
+
 
     public function getAuthPassword()
     {

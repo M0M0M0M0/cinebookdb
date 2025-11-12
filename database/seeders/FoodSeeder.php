@@ -43,14 +43,22 @@ class FoodSeeder extends Seeder
         ];
 
         foreach ($foodsData as $item) {
-            DB::table('foods')->insert([
-                'food_name' => $item['food_name'],
-                'description' => $item['description'],
-                'base_price' => $item['base_price'],
-                'status' => $item['status'],
-                'created_at' => Carbon::now(),
-                'updated_at' => Carbon::now(),
-            ]);
+            // --- SỬA LỖI Ở ĐÂY ---
+            // Thay thế insert() bằng updateOrInsert()
+            DB::table('foods')->updateOrInsert(
+                // 1. Điều kiện để kiểm tra (cột unique)
+                ['food_name' => $item['food_name']],
+                
+                // 2. Dữ liệu để chèn hoặc cập nhật
+                [
+                    'description' => $item['description'],
+                    'base_price' => $item['base_price'],
+                    'status' => $item['status'],
+                    'created_at' => Carbon::now(),
+                    'updated_at' => Carbon::now(),
+                ]
+            );
+            // --- KẾT THÚC SỬA LỖI ---
         }
     }
 }

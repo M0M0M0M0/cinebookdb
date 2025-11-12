@@ -923,6 +923,7 @@ class BookingController extends Controller
 
             $bookingData = [
                 'booking_id' => $booking->booking_id,
+                'showtime_id' => $showtime->showtime_id,
                 'movie_id' => $movie ? $movie->movie_id : null,
                 'movie_title' => $movie ? $movie->title : 'Unknown',
                 'poster' => $movie ? $movie->poster_path : null,
@@ -948,6 +949,8 @@ class BookingController extends Controller
                 'expires_at' => $booking->expires_at ? $booking->expires_at->format('d/m/Y H:i') : null,
                 'is_expired' => $isExpired,
                 'is_past' => $isPast,
+                'next_step' => empty($foods) ? 'food' : 'payment', // food hoặc payment
+    'has_foods' => !empty($foods), // true/false
             ];
 
             // Phân loại

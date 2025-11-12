@@ -32,7 +32,7 @@ class Booking extends Model
     }
     // ✅ THÊM: Relationship với tickets
     public function tickets()
-{
-    return $this->hasMany(Ticket::class, 'booking_id', 'booking_id');
-}
+    {
+        return $this->hasMany(Ticket::class, 'booking_id', 'booking_id');
+    }
 }

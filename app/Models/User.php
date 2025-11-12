@@ -42,4 +42,9 @@ class User extends Authenticatable
     {
         return $this->password_hash;
     }
+
+    public function reviews()
+    {
+        return $this->hasMany(Review::class, 'web_user_id', 'web_user_id');
+    }
 }

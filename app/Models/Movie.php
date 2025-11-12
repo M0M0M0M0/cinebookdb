@@ -52,4 +52,17 @@ class Movie extends Model
         }
         return null;
     }
+    public function reviews()
+    {
+        return $this->hasMany(Review::class, 'movie_id', 'movie_id');
+    }
+
+    /**
+     * (Khuyến khích) Accessor để lấy điểm rating trung bình
+     */
+    public function getAverageRatingAttribute()
+    {
+        // Lấy trung bình cộng của cột 'rating' và làm tròn 1 chữ số
+        return round($this->reviews()->avg('rating'), 1);
+    }
 }

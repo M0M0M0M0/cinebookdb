@@ -17,7 +17,8 @@ use App\Http\Controllers\BookingController;
 use App\Http\Controllers\GenreController;
 use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\SeatController;
-
+use App\Http\Controllers\UserProfileController;
+use App\Http\Controllers\BookingController;
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -67,9 +68,11 @@ Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 // ========== PROTECTED ROUTES (Require Authentication) ==========
 Route::middleware('auth:sanctum')->group(function () {
     // User Profile
-    Route::get('/user-profile', [UserController::class, 'profile']);
-    Route::patch('/user-profile', [UserController::class, 'updateProfile']);
-    Route::patch('/user-profile/password', [UserController::class, 'changePassword']);
+    Route::get('/user-profile', [UserProfileController::class, 'profile']);
+    Route::patch('/user-profile', [UserProfileController::class, 'updateProfile']);
+    Route::patch('/user-profile/password', [UserProfileController::class, 'changePassword']);
+     // ✅ API: Lịch sử đặt vé + vé sắp chiếu
+    Route::get('/user/bookings', [BookingController::class, 'getUserBookings']);
     // Check all pending bookings for user
     Route::get('/bookings/check-pending-all', [BookingController::class, 'checkPendingAll']);
 
@@ -120,3 +123,10 @@ Route::delete('/rooms/{id}', [RoomController::class, 'destroy']);
 Route::get('/rooms/{room_id}/seats', [SeatController::class, 'index']);
 Route::post('/seats', [SeatController::class, 'store']);
 Route::delete('/seats/{id}', [SeatController::class, 'destroy']);
+Route::put('/seats/{id}', [SeatController::class, 'update']);
+
+//User API
+Route::get('/users', [UserController::class, 'index']);
+Route::put('/users/{id}', [UserController::class, 'update']);
+Route::delete('/users/{id}', [UserController::class, 'destroy']);
+Route::patch('/users/{id}/toggle', [UserController::class, 'toggleStatus']);

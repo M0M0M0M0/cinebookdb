@@ -49,7 +49,7 @@ class UserProfileController extends Controller
         $validated = $request->validate([
             'current_password' => 'required|string',
             'new_password'     => 'required|string|min:8',
-            'confirm_password' => 'required|string|same:new_password',
+            'new_password_confirmation' => 'required|string|same:new_password',
         ]);
 
         $user = $request->user();

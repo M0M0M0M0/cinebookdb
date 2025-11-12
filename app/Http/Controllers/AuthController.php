@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Auth;
+use App\Models\Staff;
 
 class AuthController extends Controller
 {
@@ -16,23 +18,69 @@ class AuthController extends Controller
     {
         $request->validate([
             'email' => 'required|email',
-            'password' => 'required|string',
+            'password' => 'required',
         ]);
 
-        $user = User::where('email', $request->email)->first();
+        // ✅ Kiểm tra xem có phải login admin không
+        $isAdminLogin = $request->query('type') === 'admin';
 
-        if (! $user || ! Hash::check($request->password, $user->password_hash)) {
-            return response()->json(['message' => 'Sai email hoặc mật khẩu'], 401);
+        $email = $request->email;
+        $password = $request->password;
+
+        if ($isAdminLogin) {
+            // ✅ LOGIN ADMIN - Check trong bảng STAFFS
+            $staff = Staff::where('email', $email)->first();
+
+            // ✅ Kiểm tra staff có tồn tại và password đúng không
+            if (!$staff || !Hash::check($password, $staff->password_hash)) {
+                return response()->json([
+                    'message' => 'Invalid email or password'
+                ], 401);
+            }
+
+            // ✅ Tạo token cho staff
+            $token = $staff->createToken('admin_token')->plainTextToken;
+
+            return response()->json([
+                'access_token' => $token,
+                'token_type' => 'Bearer',
+                'user' => [
+                    'staff_id' => $staff->staff_id,
+                    'full_name' => $staff->full_name,
+                    'email' => $staff->email,
+                    'user_type' => 'staff',
+                    'phone_number' => $staff->phone_number,
+                    'role_id' => $staff->role_id,
+                ]
+            ]);
+
+        } else {
+            // ✅ LOGIN USER - Check trong bảng USERS
+            $user = User::where('email', $email)->first();
+
+            // ✅ Kiểm tra user có tồn tại và password đúng không
+            // (Giả sử bảng users dùng cột 'password', nếu khác thì sửa lại)
+            if (!$user || !Hash::check($password, $user->password_hash)) {
+                return response()->json([
+                    'message' => 'Invalid email or password'
+                ], 401);
+            }
+
+            // ✅ Tạo token cho user
+            $token = $user->createToken('user_token')->plainTextToken;
+
+            return response()->json([
+                'access_token' => $token,
+                'token_type' => 'Bearer',
+                'user' => [
+                    'user_id' => $user->user_id,
+                    'full_name' => $user->full_name,
+                    'email' => $user->email,
+                    'user_type' => 'customer',
+                    'phone_number' => $user->phone_number,
+                ]
+            ]);
         }
-
-        $token = $user->createToken('auth_token')->plainTextToken;
-
-        return response()->json([
-            'message' => 'Đăng nhập thành công',
-            'access_token' => $token,
-            'token_type' => 'Bearer',
-            'user' => $user,
-        ]);
     }
 
     // Đăng ký tài khoản

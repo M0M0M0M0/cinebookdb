@@ -71,7 +71,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user-profile', [UserProfileController::class, 'profile']);
     Route::patch('/user-profile', [UserProfileController::class, 'updateProfile']);
     Route::patch('/user-profile/password', [UserProfileController::class, 'changePassword']);
-     // ✅ API: Lịch sử đặt vé + vé sắp chiếu
+    // ✅ API: Lịch sử đặt vé + vé sắp chiếu
     Route::get('/user/bookings', [BookingController::class, 'getUserBookings']);
     // Check all pending bookings for user
     Route::get('/bookings/check-pending-all', [BookingController::class, 'checkPendingAll']);
@@ -102,6 +102,20 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/bookings/{booking_id}/tickets', [BookingController::class, 'getBookingTickets']);
     // Get user bookings
     Route::get('/user/bookings', [BookingController::class, 'getUserBookings']);
+    // Admin-only routes
+    Route::get('/admin/dashboard', function (Request $request) {
+        return response()->json([
+            'success' => true,
+            'message' => 'Welcome to Admin Dashboard',
+            'user' => $request->user()
+        ]);
+    });
+
+    // Admin-only APIs như quản lý user, movies, theaters, etc.
+    Route::get('/users', [UserController::class, 'index']);
+    Route::put('/users/{id}', [UserController::class, 'update']);
+    Route::delete('/users/{id}', [UserController::class, 'destroy']);
+    Route::patch('/users/{id}/toggle', [UserController::class, 'toggleStatus']);
 });
 Route::resource('foods', FoodController::class)->except(['create', 'edit']);
 Route::resource('seat-types', SeatTypeController::class)->except(['create', 'edit']);

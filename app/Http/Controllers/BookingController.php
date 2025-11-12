@@ -612,22 +612,50 @@ class BookingController extends Controller
     }
     // ================================
     // 3) ADD FOODS TO BOOKING
+    /**
+ * Thêm/Cập nhật foods vào booking
+ */
     public function addFoods(Request $request, $booking_id)
     {
-        $request->validate(['foods' => 'nullable|array']);
+        $request->validate([
+            'foods' => 'nullable|array',
+            'foods.*.food_id' => 'nullable|exists:foods,food_id',
+            'foods.*.food_name' => 'required|string',
+            'foods.*.quantity' => 'required|integer|min:1',
+            'foods.*.price' => 'required|numeric|min:0', // ✅ VALIDATE PRICE
+        ]);
 
         $booking = Booking::find($booking_id);
 
         // Kiểm tra booking hợp lệ và còn hạn
         if (!$booking || $booking->status !== 'pending' || now()->greaterThan($booking->expires_at)) {
-            return response()->json(['success' => false, 'message' => 'Invalid or expired Booking'], 400);
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid or expired Booking'
+            ], 400);
         }
 
-        // CẬP NHẬT SNAPSHOT ĐỒ ĂN
-        $booking->foods_snapshot = json_encode($request->foods ?? []);
+        // ✅ LƯU FOODS VỚI ĐẦY ĐỦ THÔNG TIN (bao gồm price)
+        $foodsData = $request->foods ?? [];
+
+        // Đảm bảo mỗi food item có đầy đủ thông tin
+        $processedFoods = array_map(function ($food) {
+            return [
+                'food_id' => $food['food_id'] ?? null,
+                'food_name' => $food['food_name'],
+                'quantity' => (int)$food['quantity'],
+                'price' => (float)$food['price'],
+            ];
+        }, $foodsData);
+
+        // Cập nhật snapshot đồ ăn
+        $booking->foods_snapshot = json_encode($processedFoods);
         $booking->save();
 
-        return response()->json(['success' => true, 'message' => 'Food snapshot updated']);
+        return response()->json([
+            'success' => true,
+            'message' => 'Food snapshot updated'
+        ]);
     }
     /**
  * Kiểm tra xem user có booking pending nào cho showtime này không
@@ -875,9 +903,13 @@ class BookingController extends Controller
             // Parse foods từ snapshot
             $foods = json_decode($booking->foods_snapshot, true) ?? [];
             $foodTotal = 0;
+
             if (!empty($foods)) {
                 foreach ($foods as $food) {
-                    $foodTotal += ($food['price'] ?? 0) * ($food['quantity'] ?? 0);
+                    // ✅ Đọc price từ snapshot (đã lưu đầy đủ)
+                    $price = (float)($food['price'] ?? 0);
+                    $quantity = (int)($food['quantity'] ?? 0);
+                    $foodTotal += $price * $quantity;
                 }
             }
 

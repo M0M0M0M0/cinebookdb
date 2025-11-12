@@ -18,7 +18,7 @@ use App\Http\Controllers\GenreController;
 use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\SeatController;
 use App\Http\Controllers\UserProfileController;
-use App\Http\Controllers\BookingController;
+
 /*
 |--------------------------------------------------------------------------
 | API Routes

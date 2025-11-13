@@ -18,6 +18,14 @@ class ShowtimeController extends Controller
      */
     public function index(Request $request)
     {
+        // ✅ Require theater_id to avoid loading too much data
+        if (!$request->has('theater_id')) {
+            return response()->json([
+                'message' => 'Please select a theater first',
+                'data' => []
+            ], 200);
+        }
+
         $query = Showtime::with(['movie', 'room.theater']);
 
         // Apply filters
@@ -40,6 +48,9 @@ class ShowtimeController extends Controller
         if ($request->has('status')) {
             $query->where('status', $request->status);
         }
+
+        // Only show future showtimes by default
+        $query->where('start_time', '>=', now());
 
         // Order by date and time
         $query->orderBy('start_time', 'asc');

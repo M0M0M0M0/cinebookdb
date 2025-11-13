@@ -1,10 +1,13 @@
 <?php
+
 // app/Http/Controllers/Api/ReviewController.php
+
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Movie;
 use App\Models\Review;
+use App\Models\Staff; // ✅ Thêm import Staff
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
@@ -16,12 +19,10 @@ class ReviewController extends Controller
      */
     public function index(Movie $movie)
     {
-        // Tùy chỉnh: Tải kèm user với 'web_user_id' và 'full_name'
         $reviews = $movie->reviews()
-                         ->with('user:web_user_id,full_name') 
+                         ->with('user:web_user_id,full_name')
                          ->latest()
-                         ->paginate(10); 
-
+                         ->paginate(10);
         return response()->json($reviews);
     }
 
@@ -37,21 +38,16 @@ class ReviewController extends Controller
 
         $user = Auth::user();
 
-        // Tùy chỉnh: Sử dụng 'web_user_id' và khóa chính của user
         $review = $movie->reviews()->updateOrCreate(
             [
-                // Điều kiện tìm kiếm: 
-                // 'movie_id' đã được ngầm hiểu từ $movie->reviews()
-                'web_user_id' => $user->web_user_id, // Lấy khóa chính (string)
+                'web_user_id' => $user->web_user_id,
             ],
             [
-                // Dữ liệu để cập nhật/tạo mới
-                'rating' => $validated['rating'], 
+                'rating' => $validated['rating'],
                 'comment' => $validated['comment'] ?? null,
             ]
         );
-        
-        // Tải lại thông tin user cho review vừa tạo/cập nhật
+
         $review->load('user:web_user_id,full_name');
 
         return response()->json([
@@ -65,15 +61,21 @@ class ReviewController extends Controller
      */
     public function destroy(Review $review)
     {
-        // Tùy chỉnh: 
-        // Auth::id() sẽ trả về 'web_user_id' (vì đã định nghĩa trong Model)
-        // và so sánh nó với 'web_user_id' của review.
-        if (Auth::id() !== $review->web_user_id) {
+        $user = Auth::user();
+
+        // ✅ KIỂM TRA: Admin (Staff) HOẶC Owner
+        $isAdmin = $user instanceof Staff;
+        $isOwner = Auth::id() === $review->web_user_id;
+
+        if (!$isAdmin && !$isOwner) {
             return response()->json(['message' => 'Không được phép.'], 403);
         }
 
         $review->delete();
 
-        return response()->json(['message' => 'Đã xóa đánh giá.'], 200);
+        return response()->json([
+            'success' => true,
+            'message' => 'Đã xóa đánh giá.'
+        ], 200);
     }
 }

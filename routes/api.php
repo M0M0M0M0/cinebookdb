@@ -145,3 +145,18 @@ Route::get('/users', [UserController::class, 'index']);
 Route::put('/users/{id}', [UserController::class, 'update']);
 Route::delete('/users/{id}', [UserController::class, 'destroy']);
 Route::patch('/users/{id}/toggle', [UserController::class, 'toggleStatus']);
+// Route công khai: Lấy danh sách review của phim
+// {movie} sẽ tự động tìm theo 'movie_id' (vì đã định nghĩa trong Model)
+Route::get('/movies/{movie}/reviews', [ReviewController::class, 'index']);
+
+// Các route cần xác thực (user phải đăng nhập)
+// Bạn đã dùng Sanctum (HasApiTokens), nên middleware 'auth:sanctum' là chính xác.
+Route::middleware('auth:sanctum')->group(function () {
+
+    // Gửi/cập nhật đánh giá
+    Route::post('/movies/{movie}/reviews', [ReviewController::class, 'store']);
+
+    // Xóa đánh giá
+    // {review} sẽ tự động tìm theo 'id' (mặc định của Review model)
+    Route::delete('/reviews/{review}', [ReviewController::class, 'destroy']);
+});

@@ -874,97 +874,127 @@ class BookingController extends Controller
                 'showtime.room.theater',
                 'tickets.seat.seatType'
             ])
+            ->whereHas('showtime')
             ->orderBy('created_at', 'desc')
             ->get();
+
+        \Log::info('Total bookings found: ' . $bookings->count());
 
         // Phân loại bookings
         $currentBookings = [];
         $historyBookings = [];
 
         foreach ($bookings as $booking) {
-            // Lấy thông tin movie và showtime
-            $movie = $booking->showtime->movie ?? null;
-            $showtime = $booking->showtime;
-            $theater = $showtime->room->theater ?? null;
+            try {
+                \Log::info('Processing booking: ' . $booking->booking_id);
 
-            // Parse seats từ snapshot
-            $seatCodes = json_decode($booking->seats_snapshot, true) ?? [];
+                // ✅ Debug từng bước
+                $showtime = $booking->showtime;
+                \Log::info('Showtime loaded', ['showtime_id' => $showtime?->showtime_id]);
 
-            // Lấy thông tin tickets
-            $tickets = $booking->tickets->map(function ($ticket) {
-                return [
-                    'ticket_id' => $ticket->ticket_id,
-                    'seat_code' => $ticket->seat->seat_row . $ticket->seat->seat_number,
-                    'seat_type' => $ticket->seat->seatType->seat_type_name ?? 'Unknown',
-                    'price' => $ticket->final_ticket_price,
-                ];
-            });
-
-            // Parse foods từ snapshot
-            $foods = json_decode($booking->foods_snapshot, true) ?? [];
-            $foodTotal = 0;
-
-            if (!empty($foods)) {
-                foreach ($foods as $food) {
-                    // ✅ Đọc price từ snapshot (đã lưu đầy đủ)
-                    $price = (float)($food['price'] ?? 0);
-                    $quantity = (int)($food['quantity'] ?? 0);
-                    $foodTotal += $price * $quantity;
+                if (!$showtime) {
+                    \Log::error('Showtime is null for booking: ' . $booking->booking_id);
+                    continue;
                 }
+
+                // ✅ Kiểm tra start_time
+                if (!$showtime->start_time) {
+                    \Log::error('start_time is null', [
+                        'booking_id' => $booking->booking_id,
+                        'showtime_id' => $showtime->showtime_id,
+                        'showtime_data' => $showtime->toArray()
+                    ]);
+                    continue;
+                }
+
+                \Log::info('start_time value: ' . $showtime->start_time);
+
+                // Lấy thông tin movie và showtime
+                $movie = $showtime->movie ?? null;
+                $theater = $showtime->room->theater ?? null;
+
+                // Parse seats từ snapshot
+                $seatCodes = json_decode($booking->seats_snapshot, true) ?? [];
+
+                // Lấy thông tin tickets
+                $tickets = $booking->tickets->map(function ($ticket) {
+                    return [
+                        'ticket_id' => $ticket->ticket_id,
+                        'seat_code' => $ticket->seat->seat_row . $ticket->seat->seat_number,
+                        'seat_type' => $ticket->seat->seatType->seat_type_name ?? 'Unknown',
+                        'price' => $ticket->final_ticket_price,
+                    ];
+                });
+
+                // Parse foods từ snapshot
+                $foods = json_decode($booking->foods_snapshot, true) ?? [];
+                $foodTotal = 0;
+
+                if (!empty($foods)) {
+                    foreach ($foods as $food) {
+                        $price = (float)($food['price'] ?? 0);
+                        $quantity = (int)($food['quantity'] ?? 0);
+                        $foodTotal += $price * $quantity;
+                    }
+                }
+
+                // Tính tổng tiền từ tickets
+                $ticketTotal = $tickets->sum('price');
+                $grandTotal = $ticketTotal + $foodTotal;
+
+                // ✅ Kiểm tra lại trước khi dùng start_time
+                $isPast = $showtime->start_time->isPast();
+                $isExpired = $booking->status === 'pending' && now()->greaterThan($booking->expires_at);
+
+                $bookingData = [
+                    'booking_id' => $booking->booking_id,
+                    'showtime_id' => $showtime->showtime_id,
+                    'movie_id' => $movie ? $movie->movie_id : null,
+                    'movie_title' => $movie ? $movie->title : 'Unknown',
+                    'poster' => $movie ? $movie->poster_path : null,
+                    'theater_name' => $theater ? $theater->theater_name : 'Unknown',
+                    'theater_address' => $theater ? $theater->address : 'N/A',
+                    'room_name' => $showtime->room->room_name ?? 'N/A',
+                    'showtime_date' => $showtime->start_time->format('Y-m-d'),
+                    'showtime_time' => $showtime->start_time->format('H:i'),
+                    'showtime_full' => $showtime->start_time->format('d/m/Y H:i'),
+                    'duration' => $movie ? $movie->duration . ' minutes' : 'N/A',
+                    'language' => $movie ? ($movie->language ?? 'English') : 'N/A',
+                    'format' => '2D',
+                    'seats' => $seatCodes,
+                    'seat_types' => $tickets->pluck('seat_type')->unique()->values(),
+                    'tickets' => $tickets,
+                    'foods' => $foods,
+                    'ticket_total' => round($ticketTotal, 2),
+                    'food_total' => round($foodTotal, 2),
+                    'grand_total' => round($grandTotal, 2),
+                    'status' => $booking->status,
+                    'payment_method' => 'Card',
+                    'created_at' => $booking->created_at->format('d/m/Y H:i'),
+                    'expires_at' => $booking->expires_at ? $booking->expires_at->format('d/m/Y H:i') : null,
+                    'is_expired' => $isExpired,
+                    'is_past' => $isPast,
+                    'next_step' => empty($foods) ? 'food' : 'payment',
+                    'has_foods' => !empty($foods),
+                ];
+
+                // Phân loại
+                if ($booking->status === 'completed' && $isPast) {
+                    $historyBookings[] = $bookingData;
+                } elseif ($booking->status === 'completed' && !$isPast) {
+                    $currentBookings[] = $bookingData;
+                } elseif ($booking->status === 'pending' && !$isExpired) {
+                    $currentBookings[] = $bookingData;
+                }
+
+            } catch (\Exception $e) {
+                \Log::error('Error processing booking', [
+                    'booking_id' => $booking->booking_id,
+                    'error' => $e->getMessage(),
+                    'line' => $e->getLine()
+                ]);
+                continue;
             }
-
-            // Tính tổng tiền từ tickets
-            $ticketTotal = $tickets->sum('price');
-            $grandTotal = $ticketTotal + $foodTotal;
-
-            // Kiểm tra showtime đã qua chưa
-            $isPast = $showtime->start_time->isPast();
-            $isExpired = $booking->status === 'pending' && now()->greaterThan($booking->expires_at);
-
-            $bookingData = [
-                'booking_id' => $booking->booking_id,
-                'showtime_id' => $showtime->showtime_id,
-                'movie_id' => $movie ? $movie->movie_id : null,
-                'movie_title' => $movie ? $movie->title : 'Unknown',
-                'poster' => $movie ? $movie->poster_path : null,
-                'theater_name' => $theater ? $theater->theater_name : 'Unknown',
-                'theater_address' => $theater ? $theater->address : 'N/A',
-                'room_name' => $showtime->room->room_name ?? 'N/A',
-                'showtime_date' => $showtime->start_time->format('Y-m-d'),
-                'showtime_time' => $showtime->start_time->format('H:i'),
-                'showtime_full' => $showtime->start_time->format('d/m/Y H:i'),
-                'duration' => $movie ? $movie->duration . ' minutes' : 'N/A',
-                'language' => $movie ? ($movie->language ?? 'English') : 'N/A',
-                'format' => '2D', // Hoặc lấy từ showtime nếu có
-                'seats' => $seatCodes,
-                'seat_types' => $tickets->pluck('seat_type')->unique()->values(),
-                'tickets' => $tickets,
-                'foods' => $foods,
-                'ticket_total' => round($ticketTotal, 2),
-                'food_total' => round($foodTotal, 2),
-                'grand_total' => round($grandTotal, 2),
-                'status' => $booking->status,
-                'payment_method' => 'Card', // Thêm field này vào DB nếu cần
-                'created_at' => $booking->created_at->format('d/m/Y H:i'),
-                'expires_at' => $booking->expires_at ? $booking->expires_at->format('d/m/Y H:i') : null,
-                'is_expired' => $isExpired,
-                'is_past' => $isPast,
-                'next_step' => empty($foods) ? 'food' : 'payment', // food hoặc payment
-    'has_foods' => !empty($foods), // true/false
-            ];
-
-            // Phân loại
-            if ($booking->status === 'completed' && $isPast) {
-                // Vé đã xem (past)
-                $historyBookings[] = $bookingData;
-            } elseif ($booking->status === 'completed' && !$isPast) {
-                // Vé sắp xem (current)
-                $currentBookings[] = $bookingData;
-            } elseif ($booking->status === 'pending' && !$isExpired) {
-                // Vé đang pending (current)
-                $currentBookings[] = $bookingData;
-            }
-            // Cancelled hoặc expired không hiển thị
         }
 
         return response()->json([

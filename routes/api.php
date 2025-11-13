@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\SeatController;
 use App\Http\Controllers\UserProfileController;
 use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\MovieSearchController;
+use App\Http\Controllers\NotificationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -122,6 +123,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/users/{id}', [UserController::class, 'update']);
     Route::delete('/users/{id}', [UserController::class, 'destroy']);
     Route::patch('/users/{id}/toggle', [UserController::class, 'toggleStatus']);
+
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::patch('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
 });
 Route::resource('foods', FoodController::class)->except(['create', 'edit']);
 Route::resource('seat-types', SeatTypeController::class)->except(['create', 'edit']);

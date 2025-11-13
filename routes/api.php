@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\SeatController;
 use App\Http\Controllers\UserProfileController;
 use App\Http\Controllers\Api\ReviewController;
+use App\Http\Controllers\MovieSearchController;
 
 /*
 |--------------------------------------------------------------------------
@@ -34,17 +35,20 @@ Route::get('/genres', [GenreController::class, 'index']);
 Route::get('/movies', function () {
     return Movie::with('genres')->orderBy('release_date', 'desc')->limit(60)->get();
 });
-Route::get('/movies/{id}', [MovieController::class, 'show']);
+
 Route::post('/movies', [MovieController::class, 'store']);
 Route::put('/movies/{id}', [MovieController::class, 'update']);
 Route::delete('/movies/{id}', [MovieController::class, 'destroy']);
 Route::get('/movies/{id}/showtimes', [ShowtimeController::class, 'getShowtimesByMovie']);
 
+Route::get('/movies/search-by-cac', [MovieSearchController::class, 'searchByCac']);
+Route::get('/movies/{id}', [MovieController::class, 'show']);
 // Theaters
 Route::apiResource('theaters', TheaterController::class);
 Route::put('/theaters/{id}', [TheaterController::class, 'update']);
 Route::get('/theaters/{id}/rooms', [TheaterController::class, 'getRooms']);
 Route::get('/showtimes-by-theater', [ShowtimeController::class, 'getShowtimesForTheaterPage']);
+
 
 // Cities - Get unique cities from theaters
 Route::get('/cities', function () {

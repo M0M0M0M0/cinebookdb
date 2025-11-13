@@ -9,6 +9,8 @@ class GenreController extends Controller
 {
     public function index()
     {
-        return response()->json(Genre::all());
+        $genres = Genre::orderBy('name', 'asc')->get();
+
+        return response()->json($genres);
     }
 }

@@ -9,6 +9,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Models\DayModifier;
 use App\Models\TimeSlotModifier;
+use App\Models\Notification;
+use Illuminate\Support\Str;
 
 class BookingController extends Controller
 {
@@ -379,6 +381,14 @@ class BookingController extends Controller
             // ✅ 10. UPDATE BOOKING STATUS TO COMPLETED
             $booking->status = 'completed';
             $booking->save();
+            // ✅ Notify user: Booking success
+            Notification::create([
+                'notification_id' => Str::uuid(),
+                'web_user_id' => $booking->web_user_id,
+                'type' => 'booking_success',
+                'message' => '🎉 Bạn đã đặt vé thành công cho phim ' . $booking->showtime->movie->title,
+            ]);
+
 
             DB::commit();
 

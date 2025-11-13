@@ -65,4 +65,10 @@ class Movie extends Model
         // Lấy trung bình cộng của cột 'rating' và làm tròn 1 chữ số
         return round($this->reviews()->avg('rating'), 1);
     }
+    public function cacs()
+    {
+        return $this->belongsToMany(\App\Models\Cac::class, 'cac_movie', 'movie_id', 'cac_id')
+                    ->withPivot(['role_type', 'credit_id', 'cast_order', 'character', 'department', 'job'])
+                    ->withTimestamps();
+    }
 }

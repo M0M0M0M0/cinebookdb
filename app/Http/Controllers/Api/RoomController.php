@@ -31,7 +31,7 @@ class RoomController extends Controller
     $room = \App\Models\Room::create($validated);
 
     // Auto-generate seats
-    $rows = range('A', 'H');
+    $rows = range('A', 'G');
     $seatsPerRow = 16;
 
     foreach ($rows as $row) {

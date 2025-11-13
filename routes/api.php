@@ -126,7 +126,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::patch('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+    Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllAsRead']);
 });
+
 Route::resource('foods', FoodController::class)->except(['create', 'edit']);
 Route::resource('seat-types', SeatTypeController::class)->except(['create', 'edit']);
 Route::resource('time-slot-modifiers', TimeSlotModifierController::class)->except(['create', 'edit']);

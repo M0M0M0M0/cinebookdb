@@ -1,5 +1,7 @@
 <?php
+
 // app/Models/Review.php
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -11,7 +13,7 @@ class Review extends Model
 
     /**
      * Tên bảng mà model này quản lý.
-     * (Laravel tự động đoán là 'reviews', 
+     * (Laravel tự động đoán là 'reviews',
      * nhưng thêm vào cho rõ ràng)
      */
     protected $table = 'reviews';
@@ -31,6 +33,7 @@ class Review extends Model
         'movie_id',
         'rating',
         'comment',
+        'staff_id',
     ];
 
     /**
@@ -55,5 +58,13 @@ class Review extends Model
         // 'movie_id' là khóa ngoại (foreign key) trong bảng 'reviews'.
         // 'movie_id' là khóa sở hữu (owner key) trong bảng 'movies'.
         return $this->belongsTo(Movie::class, 'movie_id', 'movie_id');
+    }
+    public function staff()
+    {
+        return $this->belongsTo(Staff::class, 'staff_id', 'staff_id');
+    }
+    public function getReviewerAttribute()
+    {
+        return $this->user ?? $this->staff;
     }
 }

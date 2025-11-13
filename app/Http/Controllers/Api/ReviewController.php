@@ -1,13 +1,12 @@
 <?php
 
-// app/Http/Controllers/Api/ReviewController.php
-
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Movie;
 use App\Models\Review;
-use App\Models\Staff; // ✅ Thêm import Staff
+use App\Models\Staff;
+use App\Models\WebUser;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
@@ -23,6 +22,13 @@ class ReviewController extends Controller
                          ->with('user:web_user_id,full_name')
                          ->latest()
                          ->paginate(10);
+
+        // ✅ Thêm thông tin user_type vào mỗi review
+        $reviews->getCollection()->transform(function ($review) {
+            $review->user_type = 'customer'; // Mặc định là customer
+            return $review;
+        });
+
         return response()->json($reviews);
     }
 
@@ -38,17 +44,41 @@ class ReviewController extends Controller
 
         $user = Auth::user();
 
-        $review = $movie->reviews()->updateOrCreate(
-            [
-                'web_user_id' => $user->web_user_id,
-            ],
-            [
+        // ✅ Xác định user type
+        $isStaff = $user instanceof Staff;
+
+        if ($isStaff) {
+            // ✅ Admin bình luận - tạo review với staff info
+            $review = Review::create([
+                'movie_id' => $movie->movie_id,
+                'web_user_id' => null, // Staff không có web_user_id
+                'staff_id' => $user->staff_id, // ✅ Lưu staff_id
                 'rating' => $validated['rating'],
                 'comment' => $validated['comment'] ?? null,
-            ]
-        );
+            ]);
 
-        $review->load('user:web_user_id,full_name');
+            // Tạo object user giả để frontend hiển thị
+            $review->user = (object)[
+                'full_name' => $user->full_name,
+                'web_user_id' => null,
+            ];
+            $review->user_type = 'staff'; // ✅ Đánh dấu là staff
+
+        } else {
+            // Customer bình luận
+            $review = $movie->reviews()->updateOrCreate(
+                [
+                    'web_user_id' => $user->web_user_id,
+                ],
+                [
+                    'rating' => $validated['rating'],
+                    'comment' => $validated['comment'] ?? null,
+                ]
+            );
+
+            $review->load('user:web_user_id,full_name');
+            $review->user_type = 'customer';
+        }
 
         return response()->json([
             'message' => 'Đánh giá của bạn đã được lưu.',
@@ -63,7 +93,6 @@ class ReviewController extends Controller
     {
         $user = Auth::user();
 
-        // ✅ KIỂM TRA: Admin (Staff) HOẶC Owner
         $isAdmin = $user instanceof Staff;
         $isOwner = Auth::id() === $review->web_user_id;
 

@@ -31,6 +31,27 @@ class TheaterController extends Controller
 
         return response()->json($theaters);
     }
+    /**
+ * ✅ Update an existing theater
+ */
+    public function update(Request $req, $id)
+    {
+        $theater = Theater::findOrFail($id);
+
+        $data = $req->validate([
+            'theater_name'    => 'required|string|max:100',
+            'theater_address' => 'required|string|max:255',
+            'theater_city'    => 'required|string|max:100',
+        ]);
+
+        $theater->update($data);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Theater updated successfully',
+            'theater' => $theater
+        ]);
+    }
 
     /**
      * Store a new theater
@@ -54,7 +75,7 @@ class TheaterController extends Controller
     {
         $theater = Theater::with('rooms.seats')->findOrFail($id);
         $theater->room_count = $theater->rooms->count();
-        $theater->seat_capacity = $theater->rooms->sum(fn($r) => $r->seats->count());
+        $theater->seat_capacity = $theater->rooms->sum(fn ($r) => $r->seats->count());
         return response()->json($theater);
     }
 
@@ -90,4 +111,3 @@ class TheaterController extends Controller
         return response()->json($theater->rooms);
     }
 }
-

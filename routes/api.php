@@ -42,6 +42,7 @@ Route::get('/movies/{id}/showtimes', [ShowtimeController::class, 'getShowtimesBy
 
 // Theaters
 Route::apiResource('theaters', TheaterController::class);
+Route::put('/theaters/{id}', [TheaterController::class, 'update']);
 Route::get('/theaters/{id}/rooms', [TheaterController::class, 'getRooms']);
 Route::get('/showtimes-by-theater', [ShowtimeController::class, 'getShowtimesForTheaterPage']);
 

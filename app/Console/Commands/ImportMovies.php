@@ -20,13 +20,17 @@ class ImportMovies extends Command
 
 
         $nowPlayingPage = $tmdb->call('/movie/now_playing', ['page' => 1]);
-        foreach ($nowPlayingPage['results'] as $m) {
-            $ids[] = $m['id'];
+        if (!empty($nowPlayingPage['results'])) {
+            foreach ($nowPlayingPage['results'] as $m) {
+                $ids[] = $m['id'];
+            }
         }
 
         $comingSoonPage = $tmdb->call('/movie/upcoming', ['page' => 1]);
-        foreach ($comingSoonPage['results'] as $m) {
-            $ids[] = $m['id'];
+         if (!empty($comingSoonPage['results'])) {
+            foreach ($comingSoonPage['results'] as $m) {
+                $ids[] = $m['id'];
+            }
         }
 
         $ids = array_unique($ids);
@@ -37,6 +41,24 @@ class ImportMovies extends Command
         foreach ($ids as $id) {
             $this->info("Import movie id = $id ...");
             $detail  = $tmdb->call("/movie/$id");
+
+            // --- BẮT ĐẦU SỬA LỖI (Kiểm tra Duration) ---
+
+            // Lấy thời lượng (runtime), nếu không có (null) hoặc là 0, thì bỏ qua
+            $duration = $detail['runtime'] ?? null;
+
+            if (empty($duration) || $duration <= 0) {
+                // Lấy title để log, nếu không có title thì dùng ID
+                $titleForLog = $detail['title'] ?? "ID: $id";
+                $this->warn("Skipping movie '$titleForLog' due to invalid duration: $duration");
+                
+                // Bỏ qua phim này và chuyển sang ID tiếp theo
+                continue; 
+            }
+            // --- KẾT THÚC SỬA LỖI ---
+
+
+            // Chỉ gọi API videos nếu duration hợp lệ (tiết kiệm API call)
             $videos  = $tmdb->call("/movie/$id/videos");
             $trailer = null;
             if (!empty($videos['results'])) {
@@ -47,6 +69,7 @@ class ImportMovies extends Command
                     }
                 }
             }
+            
             $baseImageUrl = 'https://image.tmdb.org/t/p/original';
             $movie = Movie::updateOrCreate(
                 ['movie_id' => $detail['id']],
@@ -59,13 +82,21 @@ class ImportMovies extends Command
                     'release_date'      => $detail['release_date'] ?? null,
                     'title'             => $detail['title'],
                     'vote_average'      => $detail['vote_average'] ?? null,
-                    'duration'          => $detail['runtime'] ?? null,
+                    
+                    // Giờ biến $duration đã được kiểm tra, an toàn để lưu
+                    'duration'          => $duration, 
+                    
                     'trailer_link'      => $trailer,
                 ]
             );
+
             if (!empty($detail['genres']) && is_array($detail['genres'])) {
                 $genreIds = collect($detail['genres'])->pluck('id')->filter()->all();
                 if (!empty($genreIds)) {
+                    // --- SỬA LỖI ---
+                    // Bỏ qua bước tìm 'id' cục bộ và đồng bộ trực tiếp bằng $genreIds (TMDB genre_id)
+                    // Giả định rằng mối quan hệ `genres()` của bạn được thiết lập để
+                    // sử dụng 'genre_id' làm khóa ngoại trong bảng pivot.
                     $movie->genres()->sync($genreIds);
                 }
             }

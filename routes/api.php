@@ -181,4 +181,6 @@ Route::prefix('dashboard')->group(function () {
     Route::get('/revenue-by-theater', [DashboardController::class, 'getRevenueByTheater']);
     Route::get('/user-registrations', [DashboardController::class, 'getUserRegistrations']);
     Route::get('/active-bookings', [DashboardController::class, 'getActiveBookings']);
+    Route::get('export/sales/{period}', [DashboardController::class, 'exportSales']);
+
 });

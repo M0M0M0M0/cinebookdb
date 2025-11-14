@@ -262,4 +262,93 @@ class DashboardController extends Controller
 
         return response()->json($activeBookings);
     }
+    public function exportSales($period)
+    {
+        // Tắt strict mode cho query này
+        DB::statement("SET SESSION sql_mode=(SELECT REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''))");
+
+        $query = DB::table('bookings as b')
+            ->join('tickets as t', 'b.booking_id', '=', 't.booking_id')
+            ->where('b.status', 'completed');
+
+        switch ($period) {
+            case 'daily':
+                $data = $query
+                    ->selectRaw('DATE(b.created_at) as date')
+                    ->selectRaw('COUNT(DISTINCT b.booking_id) as bookings')
+                    ->selectRaw('SUM(t.final_ticket_price) as revenue')
+                    ->where('b.created_at', '>=', Carbon::now()->subDays(30))
+                    ->groupByRaw('DATE(b.created_at)')
+                    ->orderByRaw('DATE(b.created_at) DESC')
+                    ->get();
+                break;
+
+            case 'weekly':
+                $data = DB::select("
+                SELECT 
+                    YEAR(b.created_at) as year,
+                    WEEK(b.created_at, 1) as week_number,
+                    CONCAT('Week ', WEEK(b.created_at, 1), ' - ', YEAR(b.created_at)) as week_label,
+                    MIN(DATE(b.created_at)) as week_start,
+                    MAX(DATE(b.created_at)) as week_end,
+                    COUNT(DISTINCT b.booking_id) as bookings,
+                    SUM(t.final_ticket_price) as revenue
+                FROM bookings b
+                INNER JOIN tickets t ON b.booking_id = t.booking_id
+                WHERE b.status = 'completed'
+                AND b.created_at >= DATE_SUB(NOW(), INTERVAL 12 WEEK)
+                GROUP BY YEAR(b.created_at), WEEK(b.created_at, 1)
+                ORDER BY YEAR(b.created_at) DESC, WEEK(b.created_at, 1) DESC
+            ");
+                break;
+
+            case 'monthly':
+                $data = DB::select("
+                SELECT 
+                    YEAR(b.created_at) as year,
+                    MONTH(b.created_at) as month_number,
+                    DATE_FORMAT(b.created_at, '%M %Y') as month_label,
+                    COUNT(DISTINCT b.booking_id) as bookings,
+                    SUM(t.final_ticket_price) as revenue
+                FROM bookings b
+                INNER JOIN tickets t ON b.booking_id = t.booking_id
+                WHERE b.status = 'completed'
+                AND b.created_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
+                GROUP BY YEAR(b.created_at), MONTH(b.created_at)
+                ORDER BY YEAR(b.created_at) DESC, MONTH(b.created_at) DESC
+            ");
+                break;
+
+            default:
+                return response()->json(['error' => 'Invalid period'], 400);
+        }
+
+        return response()->json($data);
+    }
+
+    /**
+     * Convert array to CSV (nếu dùng Option 2)
+     */
+    private function arrayToCSV($data, $columns)
+    {
+        $output = fopen('php://temp', 'r+');
+
+        // Header
+        fputcsv($output, array_values($columns));
+
+        // Rows
+        foreach ($data as $row) {
+            $line = [];
+            foreach (array_keys($columns) as $key) {
+                $line[] = $row->$key ?? '';
+            }
+            fputcsv($output, $line);
+        }
+
+        rewind($output);
+        $csv = stream_get_contents($output);
+        fclose($output);
+
+        return $csv;
+    }
 }

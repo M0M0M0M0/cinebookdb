@@ -203,7 +203,7 @@ class BookingController extends Controller
             'web_user_id' => auth()->id(),
             'showtime_id' => $showtimeId,
             'status'      => 'pending',
-            'expires_at'  => now()->addMinutes(15), // Thời gian hết hạn 15 phút
+            'expires_at'  => now()->addMinutes(10), // Thời gian hết hạn 15 phút
             'seats_snapshot' => json_encode($seatCodes),
         ]);
 

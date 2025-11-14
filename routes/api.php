@@ -21,6 +21,7 @@ use App\Http\Controllers\UserProfileController;
 use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\MovieSearchController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\DashboardController;
 
 /*
 |--------------------------------------------------------------------------
@@ -170,4 +171,14 @@ Route::middleware('auth:sanctum')->group(function () {
     // Xóa đánh giá
     // {review} sẽ tự động tìm theo 'id' (mặc định của Review model)
     Route::delete('/reviews/{review}', [ReviewController::class, 'destroy']);
+});
+Route::prefix('dashboard')->group(function () {
+    Route::get('/overview', [DashboardController::class, 'getOverviewStats']);
+    Route::get('/sales/daily', [DashboardController::class, 'getDailySales']);
+    Route::get('/sales/weekly', [DashboardController::class, 'getWeeklySales']);
+    Route::get('/sales/monthly', [DashboardController::class, 'getMonthlySales']);
+    Route::get('/top-movies', [DashboardController::class, 'getTopMovies']);
+    Route::get('/revenue-by-theater', [DashboardController::class, 'getRevenueByTheater']);
+    Route::get('/user-registrations', [DashboardController::class, 'getUserRegistrations']);
+    Route::get('/active-bookings', [DashboardController::class, 'getActiveBookings']);
 });

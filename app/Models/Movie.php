@@ -71,4 +71,23 @@ class Movie extends Model
                     ->withPivot(['role_type', 'credit_id', 'cast_order', 'character', 'department', 'job'])
                     ->withTimestamps();
     }
+    public function casts()
+    {
+        return $this->belongsToMany(Cac::class, 'cac_movie', 'movie_id', 'cac_id')
+            ->wherePivot('role_type', 'cast')
+            ->withPivot(['character', 'cast_order', 'credit_id'])
+            ->orderByPivot('cast_order', 'asc')
+            ->withTimestamps();
+    }
+
+    /**
+     * Lấy danh sách crew của phim
+     */
+    public function crews()
+    {
+        return $this->belongsToMany(Cac::class, 'cac_movie', 'movie_id', 'cac_id')
+            ->wherePivot('role_type', 'crew')
+            ->withPivot(['department', 'job', 'credit_id'])
+            ->withTimestamps();
+    }
 }

@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\MovieSearchController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\CacController;
 
 /*
 |--------------------------------------------------------------------------
@@ -45,6 +46,7 @@ Route::get('/movies/{id}/showtimes', [ShowtimeController::class, 'getShowtimesBy
 
 Route::get('/movies/search-by-cac', [MovieSearchController::class, 'searchByCac']);
 Route::get('/movies/{id}', [MovieController::class, 'show']);
+Route::get('/movies/{movieId}/credits', [CacController::class, 'getMovieCredits']);
 // Theaters
 Route::apiResource('theaters', TheaterController::class);
 Route::put('/theaters/{id}', [TheaterController::class, 'update']);

@@ -210,7 +210,7 @@ class BookingController extends Controller
         return response()->json([
             'success'    => true,
             'booking_id' => $booking->booking_id,
-            'message'    => 'Seats are now reserved for 15 minutes'
+            'message'    => 'Seats are now reserved for 10 minutes'
         ]);
     }
 

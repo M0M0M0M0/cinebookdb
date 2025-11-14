@@ -19,6 +19,11 @@ class Booking extends Model
     ];
 
     protected $dates = ['expires_at'];
+    public function seats()
+    {
+        return $this->belongsToMany(Seat::class, 'booking_seat', 'booking_id', 'seat_id')
+                    ->withTimestamps();
+    }
 
     public function showtime()
     {

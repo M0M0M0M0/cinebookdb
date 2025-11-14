@@ -39,14 +39,23 @@ class BookingController extends Controller
             // Kiểm tra booking đã hết hạn chưa
             $isExpired = now()->greaterThan($booking->expires_at);
 
+            // ✅ LẤY SEATS TỪ seats_snapshot (có chữ 's')
+            $seats = json_decode($booking->seats_snapshot, true) ?? [];
+
             return response()->json([
                 'success' => true,
                 'is_valid' => !$isExpired && $booking->status === 'pending',
                 'status' => $booking->status,
                 'expired' => $isExpired,
-                'expires_at' => $booking->expires_at
+                'expires_at' => $booking->expires_at,
+                'seats' => $seats,
+                'data' => [
+                    'booking_id' => $booking->id,
+                    'status' => $booking->status,
+                    'seats' => $seats,
+                    'expires_at' => $booking->expires_at,
+                ]
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -737,8 +746,7 @@ class BookingController extends Controller
         }
 
         // Xóa booking (hoặc update status = 'cancelled')
-        $booking->delete();
-        // Hoặc: $booking->update(['status' => 'cancelled']);
+        $booking->update(['status' => 'cancelled']);
 
         return response()->json([
             'success' => true,
@@ -816,7 +824,7 @@ class BookingController extends Controller
 
         // ✅ Update seats snapshot
         $booking->seats_snapshot = json_encode($newSeatCodes);
-        $booking->expires_at = now()->addMinutes(15); // Reset thời gian hết hạn
+        $booking->expires_at = now()->addMinutes(10); // Reset thời gian hết hạn
         $booking->save();
 
         return response()->json([

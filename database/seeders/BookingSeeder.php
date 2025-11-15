@@ -99,7 +99,7 @@ class BookingSeeder extends Seeder
 
         // Load showtime IDs (15-17/11/2025)
         $this->showtimeIds = DB::table('showtimes')
-            ->whereBetween('showtime_id', [59138, 75612])
+            ->whereBetween('showtime_id', [1, 9402])
             ->pluck('showtime_id')
             ->toArray();
         $this->command->info("   ✓ Showtimes: " . count($this->showtimeIds));

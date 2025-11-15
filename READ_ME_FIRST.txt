@@ -1,8 +1,14 @@
 # Database Seeding Guide
 This guide contains all necessary terminal commands to seed the database with sample data and import records.
- **IMPORTANT**: Run these commands in the exact order listed below.
 
- 
+## Prerequisites
+1. Create a new database in phpMyAdmin (e.g., `cinebook_db`)
+2. Configure `.env` file with your database name
+3. Run the following commands in sequential order
+
+⚠️ **IMPORTANT**: Execute commands in the exact order listed below to avoid dependency errors.
+
+
 php artisan tmdb:import-genres
 php artisan tmdb:import-movies
 php artisan db:seed --class=TheaterSeeder

@@ -43,8 +43,6 @@ class FoodSeeder extends Seeder
         ];
 
         foreach ($foodsData as $item) {
-            // --- SỬA LỖI Ở ĐÂY ---
-            // Thay thế insert() bằng updateOrInsert()
             DB::table('foods')->updateOrInsert(
                 // 1. Điều kiện để kiểm tra (cột unique)
                 ['food_name' => $item['food_name']],
@@ -58,7 +56,7 @@ class FoodSeeder extends Seeder
                     'updated_at' => Carbon::now(),
                 ]
             );
-            // --- KẾT THÚC SỬA LỖI ---
+
         }
     }
 }

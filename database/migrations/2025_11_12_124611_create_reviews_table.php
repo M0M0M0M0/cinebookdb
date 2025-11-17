@@ -10,12 +10,12 @@ return new class () extends Migration {
         Schema::create('reviews', function (Blueprint $table) {
             $table->id();
 
-            // --- Tùy chỉnh cho User (đã đúng) ---
+            // --- Tùy chỉnh cho User  ---
             $table->string('web_user_id', 36)->nullable();
 
             $table->string('staff_id', 36)->nullable();
 
-            // --- Tùy chỉnh cho Movie (đã đúng) ---
+            // --- Tùy chỉnh cho Movie  ---
             $table->integer('movie_id');
 
             $table->tinyInteger('rating')->unsigned();
@@ -35,10 +35,10 @@ return new class () extends Migration {
             ->on('staffs')
             ->onDelete('cascade');
 
-            // !!!!! PHẦN SỬA LỖI Ở ĐÂY !!!!!
-            // Phải tham chiếu đến 'movie_id', không phải 'id'
+            
+            // Tham chiếu đến 'movie_id'
             $table->foreign('movie_id')
-                  ->references('movie_id') // <-- PHẢI LÀ 'movie_id'
+                  ->references('movie_id') // 'movie_id'
                   ->on('movies') // trên bảng 'movies'
                   ->onDelete('cascade');
 

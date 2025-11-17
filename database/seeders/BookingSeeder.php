@@ -498,7 +498,7 @@ class BookingSeeder extends Seeder
             return ['id' => null, 'amount' => 0];
         }
 
-        // Fixed amount
+        //  amount
         $amount = (float)$modifier->modifier_amount;
 
         if ($modifier->operation === 'decrease') {
@@ -527,7 +527,7 @@ class BookingSeeder extends Seeder
             return ['id' => null, 'amount' => 0];
         }
 
-        // Fixed amount
+        //  amount
         $amount = (float)$modifier->ts_amount;
 
         if ($modifier->operation === 'decrease') {

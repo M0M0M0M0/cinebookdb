@@ -11,6 +11,7 @@ This guide contains all necessary terminal commands to seed the database with sa
 
 php artisan tmdb:import-genres
 php artisan tmdb:import-movies
+php artisan tmdb:import-all-credits
 php artisan db:seed --class=TheaterSeeder
 php artisan db:seed --class=RoomSeeder
 php artisan db:seed --class=SeatTypeSeeder
@@ -23,4 +24,11 @@ php artisan db:seed --class=ShowtimeSeeder
 php artisan db:seed --class=DayModifierSeeder
 php artisan db:seed --class=TimeSlotModifierSeeder
 php artisan db:seed --class=BookingSeeder
+
+**Optional**: To enable automatic cleanup of expired pending bookings, start the scheduler:
+```bash
+php artisan schedule:work
+```
+Note: This will run in the background and clear bookings when they expire.
+
 

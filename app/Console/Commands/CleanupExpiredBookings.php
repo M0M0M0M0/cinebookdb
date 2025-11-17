@@ -13,7 +13,7 @@ class CleanupExpiredBookings extends Command
 
     public function handle()
     {
-        $expiredBookings = Booking::where('status', 'pending') // Chỉ hủy các booking đang giữ ghế
+        $expiredBookings = Booking::where('status', 'pending') 
                                     ->where('expires_at', '<', now())
                                     ->get();
 
@@ -21,7 +21,7 @@ class CleanupExpiredBookings extends Command
         DB::beginTransaction();
         try {
             foreach ($expiredBookings as $booking) {
-                $booking->status = 'cancelled'; // Đổi trạng thái sang hủy
+                $booking->status = 'cancelled'; 
                 $booking->save();
                 $count++;
             }
